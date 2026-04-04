@@ -4,12 +4,15 @@
     "": {
       "name": "omf-mono",
     },
-    "packages/omfsh-agent": {
+    "packages/omfsh-code": {
       "name": "omfsh-agent",
       "version": "0.0.1",
+      "dependencies": {
+        "@2na3k/omfsh-provider": "*",
+      },
     },
     "packages/omfsh-provider": {
-      "name": "omfsh-provider",
+      "name": "@2na3k/omfsh-provider",
       "version": "0.0.1",
       "dependencies": {
         "@ai-sdk/anthropic": "^3.0.66",
@@ -25,6 +28,8 @@
     },
   },
   "packages": {
+    "@2na3k/omfsh-provider": ["@2na3k/omfsh-provider@workspace:packages/omfsh-provider"],
+
     "@ai-sdk/anthropic": ["@ai-sdk/anthropic@3.0.66", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@ai-sdk/provider-utils": "4.0.22" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-yJpQ2x6ACwbXo5D6HsVWd2FFnnWcetfGx4oxkG66P8FawusvrY2vL2qMiiNTruWrxEYDy+YHc3ctv8C769MMJA=="],
 
     "@ai-sdk/gateway": ["@ai-sdk/gateway@3.0.88", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@ai-sdk/provider-utils": "4.0.22", "@vercel/oidc": "3.1.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-AFoj7xdWAtCQcy0jJ235ENSakYM8D28qBX+rB+/rX4r8qe/LXgl0e5UivOqxAlIM5E9jnQdYxIPuj3XFtGk/yg=="],
@@ -57,9 +62,7 @@
 
     "json-schema": ["json-schema@0.4.0", "", {}, "sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA=="],
 
-    "omfsh-agent": ["omfsh-agent@workspace:packages/omfsh-agent"],
-
-    "omfsh-provider": ["omfsh-provider@workspace:packages/omfsh-provider"],
+    "omfsh-agent": ["omfsh-agent@workspace:packages/omfsh-code"],
 
     "undici-types": ["undici-types@7.18.2", "", {}, "sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w=="],
 

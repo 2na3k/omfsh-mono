@@ -1,5 +1,11 @@
-import { generateText, streamText, tool, jsonSchema } from "ai";
-import type { ModelMessage, ToolSet, JSONSchema7, ResponseMessage } from "ai";
+import { generateText, streamText, tool, jsonSchema, stepCountIs } from "ai";
+import type {
+  ModelMessage,
+  ToolSet,
+  JSONSchema7,
+  AssistantModelMessage,
+  ToolModelMessage,
+} from "ai";
 import { getModel } from "./get-model.js";
 import { MODELS } from "./models.js";
 import type { ModelId } from "./models.js";
@@ -16,11 +22,13 @@ import type {
   ToolResultRecord,
 } from "./types.js";
 
+type ResponseMessage = AssistantModelMessage | ToolModelMessage;
+
 function toModelMessages(messages: Message[]): ModelMessage[] {
   return messages.map((msg): ModelMessage => {
     if (msg.role === "system") return { role: "system", content: msg.content };
     if (msg.role === "user") return { role: "user", content: msg.content };
-    if (msg.role === "assistant") return { role: "assistant", content: msg.content } as ModelMessage;
+    if (msg.role === "assistant") return { role: "assistant", content: msg.content } as AssistantModelMessage;
     return {
       role: "tool",
       content: msg.content.map((part) => ({
@@ -29,7 +37,7 @@ function toModelMessages(messages: Message[]): ModelMessage[] {
         toolName: part.toolName,
         output: { type: "json" as const, value: part.output },
       })),
-    };
+    } as ToolModelMessage;
   });
 }
 
@@ -49,26 +57,39 @@ function toToolSet(tools: ToolMap): ToolSet {
 function fromResponseMessages(msgs: ResponseMessage[]): Message[] {
   return msgs.flatMap((msg): Message[] => {
     if (msg.role === "assistant") {
-      const parts = typeof msg.content === "string"
-        ? [{ type: "text" as const, text: msg.content }]
-        : msg.content.flatMap((part): AssistantMessage["content"] => {
-            if (part.type === "text") return [{ type: "text", text: part.text }];
-            if (part.type === "reasoning") return [{ type: "reasoning", text: part.text }];
-            if (part.type === "tool-call") return [{ type: "tool-call", toolCallId: part.toolCallId, toolName: part.toolName, input: part.input }];
+      const raw = msg.content as AssistantModelMessage["content"];
+      const parts = typeof raw === "string"
+        ? [{ type: "text" as const, text: raw }]
+        : (raw as Array<{ type: string; [key: string]: unknown }>).flatMap((part): AssistantMessage["content"] => {
+            if (part.type === "text") return [{ type: "text", text: part.text as string }];
+            if (part.type === "reasoning") return [{ type: "reasoning", text: part.text as string }];
+            if (part.type === "tool-call") return [{
+              type: "tool-call",
+              toolCallId: part.toolCallId as string,
+              toolName: part.toolName as string,
+              input: part.input,
+            }];
             return [];
           });
       return [{ role: "assistant", content: parts }];
     }
+
     if (msg.role === "tool") {
-      const parts: ToolMessage["content"] = msg.content.flatMap((part) => {
+      const parts: ToolMessage["content"] = (msg.content as Array<{ type: string; [key: string]: unknown }>).flatMap((part) => {
         if (part.type !== "tool-result") return [];
-        const raw = part.output;
-        const output = raw.type === "text" ? raw.value : raw.type === "json" ? raw.value : null;
+        const raw = part.output as { type: string; value?: unknown };
+        const output = raw.type === "text" || raw.type === "json" ? raw.value : null;
         if (output === null) return [];
-        return [{ type: "tool-result" as const, toolCallId: part.toolCallId, toolName: part.toolName, output }];
+        return [{
+          type: "tool-result" as const,
+          toolCallId: part.toolCallId as string,
+          toolName: part.toolName as string,
+          output,
+        }];
       });
       return [{ role: "tool", content: parts }];
     }
+
     return [];
   });
 }
@@ -84,7 +105,7 @@ export async function generate(
     system: options.system,
     messages: toModelMessages(messages),
     tools: options.tools ? toToolSet(options.tools) : undefined,
-    maxSteps: 1,
+    stopWhen: stepCountIs(1),
     temperature: options.temperature,
     maxOutputTokens: options.maxTokens,
   });
@@ -111,7 +132,7 @@ export async function* streamGenerate(
     system: options.system,
     messages: toModelMessages(messages),
     tools: options.tools ? toToolSet(options.tools) : undefined,
-    maxSteps: 1,
+    stopWhen: stepCountIs(1),
     temperature: options.temperature,
     maxOutputTokens: options.maxTokens,
   });
@@ -145,8 +166,10 @@ export async function* streamGenerate(
       }
       case "finish-step":
         finishReason = part.finishReason;
-        inputTokens = part.usage.inputTokens ?? 0;
-        outputTokens = part.usage.outputTokens ?? 0;
+        break;
+      case "finish":
+        inputTokens = part.totalUsage.inputTokens ?? 0;
+        outputTokens = part.totalUsage.outputTokens ?? 0;
         break;
     }
   }
@@ -162,7 +185,7 @@ export async function* streamGenerate(
       finishReason,
       inputTokens,
       outputTokens,
-      responseMessages: fromResponseMessages(response.messages),
+      responseMessages: fromResponseMessages(response.messages as ResponseMessage[]),
     },
   };
 }

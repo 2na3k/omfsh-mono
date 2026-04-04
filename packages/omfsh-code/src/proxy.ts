@@ -4,7 +4,7 @@ import type { AgentContext } from "./types.js";
 export function buildContext(prompt: string, base: AgentContext = { messages: [] }): AgentContext {
   return {
     ...base,
-    messages: [...base.messages, { role: "user", content: prompt }],
+    messages: [...(base.messages ?? []), { role: "user", content: prompt }],
   };
 }
 

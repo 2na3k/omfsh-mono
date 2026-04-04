@@ -20,7 +20,7 @@ export enum AgentEventType {
 
 export interface AgentContext {
   systemPrompt?: string;
-  messages: Message[];
+  messages?: Message[];
   tools?: ToolMap;
 }
 
