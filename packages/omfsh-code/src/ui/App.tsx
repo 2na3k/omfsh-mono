@@ -1,0 +1,115 @@
+import React, { useRef } from "react";
+import { Box, useInput } from "ink";
+import { MessageList } from "./MessageList.js";
+import { InputBox } from "./InputBox.js";
+import { StatusBar } from "./StatusBar.js";
+import { ModelPicker } from "./ModelPicker.js";
+import { SlashCommandMenu, SLASH_COMMANDS } from "./SlashCommandMenu.js";
+import { useAppReducer } from "./hooks/useAppReducer.js";
+import { useAgentRunner } from "./hooks/useAgentRunner.js";
+import { parseSlashCommand, handleSlashCommand } from "../slash-commands.js";
+import { createSession } from "../session.js";
+import type { ModelId } from "@2na3k/omfsh-provider";
+
+interface AppProps {
+  modelId?: ModelId;
+}
+
+export function App({ modelId }: AppProps) {
+  const slashConsumed = useRef(false);
+
+  const [state, dispatch] = useAppReducer({
+    session: createSession({ modelId }),
+    status: { kind: "idle" },
+    inputText: "",
+    pendingPrompt: null,
+    showModelPicker: false,
+    slashMenuIndex: -1,
+  });
+
+  useAgentRunner(state, dispatch);
+
+  const isRunning = state.status.kind === "running";
+  const slashFilter = state.inputText.startsWith("/") ? state.inputText.split(/\s/)[0] : "";
+  const slashCommands = SLASH_COMMANDS.filter((cmd) => cmd.command.startsWith(slashFilter) || slashFilter === "/");
+  const showSlashMenu = !isRunning && state.inputText.startsWith("/") && slashCommands.length > 0;
+
+  useInput((_input, key) => {
+    if (!showSlashMenu) return;
+
+    if (key.upArrow) {
+      const next = state.slashMenuIndex <= 0 ? slashCommands.length - 1 : state.slashMenuIndex - 1;
+      dispatch({ type: "SLASH_MENU_NAVIGATE", index: next });
+    } else if (key.downArrow) {
+      const next = state.slashMenuIndex >= slashCommands.length - 1 ? 0 : state.slashMenuIndex + 1;
+      dispatch({ type: "SLASH_MENU_NAVIGATE", index: next });
+    } else if (key.return) {
+      slashConsumed.current = true;
+      const selected = slashCommands[state.slashMenuIndex]?.command;
+      if (selected) {
+        const cmd = parseSlashCommand(selected);
+        const effect = handleSlashCommand(cmd, state.session);
+        dispatch({ type: "SLASH_EFFECT", effect });
+        dispatch({ type: "INPUT_CHANGE", text: "" });
+      }
+      setTimeout(() => { slashConsumed.current = false; }, 0);
+    } else if (key.tab) {
+      const selected = slashCommands[state.slashMenuIndex]?.command;
+      if (selected) {
+        dispatch({ type: "INPUT_CHANGE", text: selected + " " });
+      }
+    }
+  });
+
+  function handleSubmit(text: string) {
+    if (slashConsumed.current) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    if (trimmed.startsWith("/")) {
+      const cmd = parseSlashCommand(trimmed);
+      const effect = handleSlashCommand(cmd, state.session);
+      dispatch({ type: "SLASH_EFFECT", effect });
+      dispatch({ type: "INPUT_CHANGE", text: "" });
+    } else {
+      dispatch({ type: "SUBMIT_PROMPT", text: trimmed, abortController: new AbortController() });
+    }
+  }
+
+  if (state.showModelPicker) {
+    return (
+      <Box flexDirection="column" height="100%">
+        <ModelPicker
+          currentModelId={state.session.modelId}
+          onSelect={(id) => dispatch({ type: "SELECT_MODEL", modelId: id })}
+          onCancel={() => dispatch({ type: "TOGGLE_MODEL_PICKER", show: false })}
+        />
+        <Box flexGrow={1} />
+        <StatusBar session={state.session} />
+      </Box>
+    );
+  }
+
+  return (
+    <Box flexDirection="column" height="100%">
+      <MessageList messages={state.session.messages} />
+      <InputBox
+        value={state.inputText}
+        onChange={(text) => dispatch({ type: "INPUT_CHANGE", text })}
+        onSubmit={handleSubmit}
+        disabled={isRunning}
+      />
+      {showSlashMenu && (
+        <SlashCommandMenu
+          filter={slashFilter}
+          selectedIndex={state.slashMenuIndex}
+          onSelect={(cmd) => {
+            dispatch({ type: "INPUT_CHANGE", text: cmd });
+          }}
+          onNavigate={(index) => dispatch({ type: "SLASH_MENU_NAVIGATE", index })}
+        />
+      )}
+      <StatusBar session={state.session} />
+    </Box>
+  );
+}

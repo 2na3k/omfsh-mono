@@ -1,0 +1,9 @@
+{
+  "name": "@2na3k/omfsh-darwin",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@2na3k/omfsh-provider": "*"
+  }
+}

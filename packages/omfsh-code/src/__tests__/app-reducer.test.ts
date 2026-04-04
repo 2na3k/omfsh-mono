@@ -10,6 +10,8 @@ function makeState(overrides: Partial<AppState> = {}): AppState {
     status: { kind: "idle" },
     inputText: "",
     pendingPrompt: null,
+    showModelPicker: false,
+    slashMenuIndex: -1,
     ...overrides,
   };
 }
@@ -252,6 +254,43 @@ describe("appReducer: SET_STATUS", () => {
     const next = appReducer(state, action);
 
     expect(next.status.kind).toBe("running");
+  });
+});
+
+describe("appReducer: SLASH_EFFECT - open_model_picker", () => {
+  test("opens model picker", () => {
+    const state = makeState();
+    const effect: SlashEffect = { kind: "open_model_picker" };
+
+    const next = appReducer(state, { type: "SLASH_EFFECT", effect });
+
+    expect(next.showModelPicker).toBe(true);
+  });
+});
+
+describe("appReducer: TOGGLE_MODEL_PICKER", () => {
+  test("shows model picker", () => {
+    const state = makeState();
+    const next = appReducer(state, { type: "TOGGLE_MODEL_PICKER", show: true });
+
+    expect(next.showModelPicker).toBe(true);
+  });
+
+  test("hides model picker", () => {
+    const state = makeState({ showModelPicker: true });
+    const next = appReducer(state, { type: "TOGGLE_MODEL_PICKER", show: false });
+
+    expect(next.showModelPicker).toBe(false);
+  });
+});
+
+describe("appReducer: SELECT_MODEL", () => {
+  test("changes model and closes picker", () => {
+    const state = makeState({ showModelPicker: true });
+    const next = appReducer(state, { type: "SELECT_MODEL", modelId: "claude-haiku-4-5-20251001" });
+
+    expect(next.session.modelId).toBe("claude-haiku-4-5-20251001");
+    expect(next.showModelPicker).toBe(false);
   });
 });
 

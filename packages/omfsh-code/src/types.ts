@@ -1,62 +1,53 @@
-import type { ModelId, ToolMap, GenerateResult, Message } from "@2na3k/omfsh-provider";
+import type { ModelId } from "@2na3k/omfsh-provider";
+import type { AgentContext } from "@2na3k/omfsh-darwin";
 
-export type StepResult = GenerateResult;
+export type UiMessageRole = "user" | "assistant" | "reasoning" | "tool" | "system";
 
-export enum AgentEventType {
-  AgentStart     = "agent.start",
-  AgentEnd       = "agent.end",
-  TurnStart      = "turn.start",
-  TurnEnd        = "turn.end",
-  MessageStart   = "message.start",
-  MessageDelta   = "message.delta",
-  MessageEnd     = "message.end",
-  ReasoningStart = "reasoning.start",
-  ReasoningDelta = "reasoning.delta",
-  ReasoningEnd   = "reasoning.end",
-  ToolCallStart  = "tool_call.start",
-  ToolCallDelta  = "tool_call.delta",
-  ToolCallEnd    = "tool_call.end",
-}
-
-export interface AgentContext {
-  systemPrompt?: string;
-  messages?: Message[];
-  tools?: ToolMap;
-}
-
-export interface AgentConfig {
-  modelId: ModelId;
-  maxSteps?: number;
-  temperature?: number;
-  maxTokens?: number;
-  stream?: boolean;
-}
-
-export interface AgentState {
-  context: AgentContext;
-  steps: StepResult[];
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  isRunning: boolean;
+export interface UiMessage {
+  id: string;
+  role: UiMessageRole;
+  text?: string;
+  toolName?: string;
+  toolInput?: unknown;
+  toolOutput?: unknown;
   isStreaming: boolean;
 }
 
-export type LoopYield =
-  | { event: AgentEventType.AgentStart;     state: AgentState }
-  | { event: AgentEventType.TurnStart;      state: AgentState }
-  | { event: AgentEventType.MessageStart;   state: AgentState }
-  | { event: AgentEventType.MessageDelta;   delta: string; state: AgentState }
-  | { event: AgentEventType.MessageEnd;     state: AgentState }
-  | { event: AgentEventType.ReasoningStart; state: AgentState }
-  | { event: AgentEventType.ReasoningDelta; delta: string; state: AgentState }
-  | { event: AgentEventType.ReasoningEnd;   state: AgentState }
-  | { event: AgentEventType.ToolCallStart;  toolCallId: string; toolName: string; state: AgentState }
-  | { event: AgentEventType.ToolCallDelta;  toolCallId: string; delta: string; state: AgentState }
-  | { event: AgentEventType.ToolCallEnd;    toolCallId: string; toolName: string; input: unknown; output: unknown; state: AgentState }
-  | { event: AgentEventType.TurnEnd;        step: StepResult; state: AgentState }
-  | { event: AgentEventType.AgentEnd;       state: AgentState };
-
-export interface AgentResult {
-  text: string;
-  state: AgentState;
+export interface Session {
+  modelId: ModelId;
+  context: AgentContext;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  messages: UiMessage[];
 }
+
+export type AppStatus =
+  | { kind: "idle" }
+  | { kind: "running"; abortController: AbortController }
+  | { kind: "error"; message: string };
+
+export type SlashCommand =
+  | { kind: "model_list" }
+  | { kind: "model_set"; modelId: string }
+  | { kind: "clear" }
+  | { kind: "exit" }
+  | { kind: "unknown"; raw: string };
+
+export type SlashEffect =
+  | { kind: "add_message"; message: UiMessage }
+  | { kind: "set_model"; modelId: ModelId }
+  | { kind: "clear" }
+  | { kind: "open_model_picker" };
+
+export type AgentRunnerEvent =
+  | { type: "message_start";   messageId: string }
+  | { type: "message_delta";   messageId: string; delta: string }
+  | { type: "message_end";     messageId: string }
+  | { type: "reasoning_start"; messageId: string }
+  | { type: "reasoning_delta"; messageId: string; delta: string }
+  | { type: "reasoning_end";   messageId: string }
+  | { type: "tool_start";      toolCallId: string; toolName: string; messageId: string }
+  | { type: "tool_end";        toolCallId: string; input: unknown; output: unknown }
+  | { type: "turn_end";        inputTokens: number; outputTokens: number; context: AgentContext }
+  | { type: "agent_end" }
+  | { type: "error";           message: string };
