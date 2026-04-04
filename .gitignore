@@ -1,0 +1,15 @@
+node_modules/
+.bun/
+*.log
+dist/
+build/
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+.DS_Store
+
+
+# local scope
+/plans
+/.claude

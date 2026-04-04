@@ -1,0 +1,5 @@
+{
+  "name": "omfsh-mono",
+  "private": true,
+  "workspaces": ["packages/*"]
+}
