@@ -1,6 +1,5 @@
-import { isValidModelId, listModels, formatModelLabel } from "./model-registry.js";
-import { createSession } from "./session.js";
-import type { SlashCommand, SlashEffect, UiMessage, Session } from "./types.js";
+import { isValidModelId } from "./model-registry.js";
+import type { SlashCommand, SlashEffect, UiMessage } from "./types.js";
 import type { ModelId } from "@2na3k/omfsh-provider";
 
 export function parseSlashCommand(input: string): SlashCommand {
@@ -35,7 +34,7 @@ function systemMsg(text: string): UiMessage {
   };
 }
 
-export function handleSlashCommand(cmd: SlashCommand, _session: Session): SlashEffect {
+export function handleSlashCommand(cmd: SlashCommand): SlashEffect {
   switch (cmd.kind) {
     case "model_list":
       return { kind: "open_model_picker" };
@@ -54,7 +53,7 @@ export function handleSlashCommand(cmd: SlashCommand, _session: Session): SlashE
       return { kind: "clear" };
 
     case "exit":
-      process.exit(0);
+      return process.exit(0);
 
     case "unknown":
       return {

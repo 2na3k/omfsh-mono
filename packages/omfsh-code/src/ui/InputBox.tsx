@@ -4,7 +4,7 @@ import TextInput from "ink-text-input";
 
 const SPINNER_FRAMES = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
 
-function Spinner() {
+export function Spinner() {
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
@@ -28,13 +28,7 @@ export function InputBox({ value, onChange, onSubmit, disabled }: InputBoxProps)
   return (
     <Box borderStyle="single" borderTop borderBottom={false} borderLeft={false} borderRight={false}>
       <Text color="cyan">&gt; </Text>
-      {disabled ? (
-        <Text dimColor>
-          <Spinner /> running...
-        </Text>
-      ) : (
-        <TextInput value={value} onChange={onChange} onSubmit={onSubmit} />
-      )}
+      <TextInput value={value} onChange={onChange} onSubmit={onSubmit} focus={!disabled} />
     </Box>
   );
 }

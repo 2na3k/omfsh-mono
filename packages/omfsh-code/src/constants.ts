@@ -1,6 +1,6 @@
 import type { ModelId } from "@2na3k/omfsh-provider";
 
-export const DEFAULT_MODEL_ID: ModelId = "claude-sonnet-4-6";
+export const DEFAULT_MODEL_ID: ModelId = "llamacpp";
 
 export const MAX_STEPS = 20;
 

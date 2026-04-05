@@ -1,5 +1,15 @@
 {
   "name": "omfsh-mono",
   "private": true,
-  "workspaces": ["packages/*"]
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "lint": "eslint packages"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.2.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "typescript-eslint": "^8.58.0"
+  }
 }

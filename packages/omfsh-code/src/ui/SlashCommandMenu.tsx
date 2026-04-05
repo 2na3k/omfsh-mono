@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text } from "ink";
 
 export interface SlashCommandDef {
   command: string;
@@ -19,7 +19,7 @@ interface SlashCommandMenuProps {
   onNavigate: (index: number) => void;
 }
 
-export function SlashCommandMenu({ filter, selectedIndex, onSelect, onNavigate }: SlashCommandMenuProps) {
+export function SlashCommandMenu({ filter, selectedIndex, onSelect: _onSelect, onNavigate: _onNavigate }: SlashCommandMenuProps) {
   const filtered = SLASH_COMMANDS.filter((cmd) => cmd.command.startsWith(filter) || filter === "/");
 
   if (filtered.length === 0) return null;

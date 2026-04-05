@@ -1,6 +1,5 @@
 import { describe, test, expect } from "bun:test";
 import { parseSlashCommand, handleSlashCommand } from "../slash-commands.js";
-import { createSession } from "../session.js";
 
 describe("parseSlashCommand", () => {
   test("/model → model_list", () => {
@@ -36,20 +35,18 @@ describe("parseSlashCommand", () => {
 });
 
 describe("handleSlashCommand", () => {
-  const session = createSession();
-
   test("model_list returns open_model_picker effect", () => {
-    const effect = handleSlashCommand({ kind: "model_list" }, session);
+    const effect = handleSlashCommand({ kind: "model_list" });
     expect(effect.kind).toBe("open_model_picker");
   });
 
   test("model_set with valid id returns set_model effect", () => {
-    const effect = handleSlashCommand({ kind: "model_set", modelId: "claude-haiku-4-5-20251001" }, session);
+    const effect = handleSlashCommand({ kind: "model_set", modelId: "claude-haiku-4-5-20251001" });
     expect(effect).toEqual({ kind: "set_model", modelId: "claude-haiku-4-5-20251001" });
   });
 
   test("model_set with invalid id returns error message", () => {
-    const effect = handleSlashCommand({ kind: "model_set", modelId: "bogus-model" }, session);
+    const effect = handleSlashCommand({ kind: "model_set", modelId: "bogus-model" });
     expect(effect.kind).toBe("add_message");
     if (effect.kind === "add_message") {
       expect(effect.message.text).toContain("bogus-model");
@@ -57,12 +54,12 @@ describe("handleSlashCommand", () => {
   });
 
   test("clear returns clear effect", () => {
-    const effect = handleSlashCommand({ kind: "clear" }, session);
+    const effect = handleSlashCommand({ kind: "clear" });
     expect(effect).toEqual({ kind: "clear" });
   });
 
   test("unknown returns error message", () => {
-    const effect = handleSlashCommand({ kind: "unknown", raw: "/blah" }, session);
+    const effect = handleSlashCommand({ kind: "unknown", raw: "/blah" });
     expect(effect.kind).toBe("add_message");
     if (effect.kind === "add_message") {
       expect(effect.message.role).toBe("system");

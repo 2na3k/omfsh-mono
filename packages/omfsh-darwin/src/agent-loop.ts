@@ -1,5 +1,4 @@
 import { generate, streamGenerate } from "@2na3k/omfsh-provider";
-import type { Message } from "@2na3k/omfsh-provider";
 import { buildContext, appendStep } from "./proxy.js";
 import { AgentEventType } from "./types.js";
 import type { AgentConfig, AgentContext, AgentState, LoopYield, StepResult } from "./types.js";

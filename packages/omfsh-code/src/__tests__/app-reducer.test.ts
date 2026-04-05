@@ -1,8 +1,19 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { appReducer } from "../ui/hooks/useAppReducer.js";
 import type { AppState, AppAction } from "../ui/hooks/useAppReducer.js";
-import type { AgentRunnerEvent, SlashEffect } from "../types.js";
+import type { SlashEffect } from "../types.js";
 import { createSession } from "../session.js";
+import { AgentEventType } from "@2na3k/omfsh-darwin";
+import type { LoopYield, AgentState, StepResult } from "@2na3k/omfsh-darwin";
+
+const mockAgentState: AgentState = {
+  context: {},
+  steps: [],
+  totalInputTokens: 0,
+  totalOutputTokens: 0,
+  isRunning: true,
+  isStreaming: false,
+};
 
 function makeState(overrides: Partial<AppState> = {}): AppState {
   return {
@@ -12,8 +23,14 @@ function makeState(overrides: Partial<AppState> = {}): AppState {
     pendingPrompt: null,
     showModelPicker: false,
     slashMenuIndex: -1,
+    streamingMessageId: null,
+    streamingReasoningId: null,
     ...overrides,
   };
+}
+
+function agentEvent(event: LoopYield): AppAction {
+  return { type: "AGENT_EVENT", event };
 }
 
 describe("appReducer: SUBMIT_PROMPT", () => {
@@ -55,110 +72,107 @@ describe("appReducer: INPUT_CHANGE", () => {
 });
 
 describe("appReducer: AGENT_EVENT - message", () => {
-  test("message_start adds assistant message", () => {
+  test("MessageStart adds assistant message and tracks streamingMessageId", () => {
     const state = makeState();
-    const event: AgentRunnerEvent = { type: "message_start", messageId: "m1" };
-    const action: AppAction = { type: "AGENT_EVENT", event };
-
-    const next = appReducer(state, action);
+    const next = appReducer(state, agentEvent({ event: AgentEventType.MessageStart, state: mockAgentState }));
 
     expect(next.session.messages).toHaveLength(1);
-    expect(next.session.messages[0]).toMatchObject({
-      id: "m1",
-      role: "assistant",
-      text: "",
-      isStreaming: true,
-    });
+    expect(next.session.messages[0]).toMatchObject({ role: "assistant", text: "", isStreaming: true });
+    expect(next.streamingMessageId).toBe(next.session.messages[0].id);
   });
 
-  test("message_delta appends text", () => {
+  test("MessageDelta appends text to streaming message", () => {
     let state = makeState();
-    const start: AgentRunnerEvent = { type: "message_start", messageId: "m1" };
-    state = appReducer(state, { type: "AGENT_EVENT", event: start });
-
-    const delta: AgentRunnerEvent = { type: "message_delta", messageId: "m1", delta: "Hello" };
-    state = appReducer(state, { type: "AGENT_EVENT", event: delta });
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageStart, state: mockAgentState }));
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageDelta, delta: "Hello", state: mockAgentState }));
 
     expect(state.session.messages[0].text).toBe("Hello");
   });
 
-  test("message_delta accumulates", () => {
+  test("MessageDelta accumulates", () => {
     let state = makeState();
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "message_start", messageId: "m1" } });
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "message_delta", messageId: "m1", delta: "Hel" } });
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "message_delta", messageId: "m1", delta: "lo" } });
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageStart, state: mockAgentState }));
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageDelta, delta: "Hel", state: mockAgentState }));
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageDelta, delta: "lo", state: mockAgentState }));
 
     expect(state.session.messages[0].text).toBe("Hello");
   });
 
-  test("message_end stops streaming", () => {
+  test("MessageEnd stops streaming and clears streamingMessageId", () => {
     let state = makeState();
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "message_start", messageId: "m1" } });
-    const end: AgentRunnerEvent = { type: "message_end", messageId: "m1" };
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageStart, state: mockAgentState }));
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageEnd, state: mockAgentState }));
 
-    const next = appReducer(state, { type: "AGENT_EVENT", event: end });
-
-    expect(next.session.messages[0].isStreaming).toBe(false);
+    expect(state.session.messages[0].isStreaming).toBe(false);
+    expect(state.streamingMessageId).toBeNull();
   });
 });
 
 describe("appReducer: AGENT_EVENT - reasoning", () => {
-  test("reasoning_start adds reasoning message", () => {
+  test("ReasoningStart adds reasoning message and tracks streamingReasoningId", () => {
     const state = makeState();
-    const event: AgentRunnerEvent = { type: "reasoning_start", messageId: "r1" };
-
-    const next = appReducer(state, { type: "AGENT_EVENT", event });
+    const next = appReducer(state, agentEvent({ event: AgentEventType.ReasoningStart, state: mockAgentState }));
 
     expect(next.session.messages).toHaveLength(1);
-    expect(next.session.messages[0]).toMatchObject({
-      id: "r1",
-      role: "reasoning",
-      text: "",
-      isStreaming: true,
-    });
+    expect(next.session.messages[0]).toMatchObject({ role: "reasoning", text: "", isStreaming: true });
+    expect(next.streamingReasoningId).toBe(next.session.messages[0].id);
   });
 
-  test("reasoning_delta appends text", () => {
+  test("ReasoningDelta appends text", () => {
     let state = makeState();
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "reasoning_start", messageId: "r1" } });
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "reasoning_delta", messageId: "r1", delta: "thinking" } });
+    state = appReducer(state, agentEvent({ event: AgentEventType.ReasoningStart, state: mockAgentState }));
+    state = appReducer(state, agentEvent({ event: AgentEventType.ReasoningDelta, delta: "thinking", state: mockAgentState }));
 
     expect(state.session.messages[0].text).toBe("thinking");
   });
 
-  test("reasoning_end stops streaming", () => {
+  test("ReasoningEnd stops streaming and clears streamingReasoningId", () => {
     let state = makeState();
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "reasoning_start", messageId: "r1" } });
-    const next = appReducer(state, { type: "AGENT_EVENT", event: { type: "reasoning_end", messageId: "r1" } });
+    state = appReducer(state, agentEvent({ event: AgentEventType.ReasoningStart, state: mockAgentState }));
+    state = appReducer(state, agentEvent({ event: AgentEventType.ReasoningEnd, state: mockAgentState }));
 
-    expect(next.session.messages[0].isStreaming).toBe(false);
+    expect(state.session.messages[0].isStreaming).toBe(false);
+    expect(state.streamingReasoningId).toBeNull();
   });
 });
 
 describe("appReducer: AGENT_EVENT - tool", () => {
-  test("tool_start adds tool message", () => {
+  test("ToolCallStart adds tool message using toolCallId as id", () => {
     const state = makeState();
-    const event: AgentRunnerEvent = { type: "tool_start", toolCallId: "tc1", toolName: "read", messageId: "t1" };
-
-    const next = appReducer(state, { type: "AGENT_EVENT", event });
+    const next = appReducer(state, agentEvent({
+      event: AgentEventType.ToolCallStart,
+      toolCallId: "tc1",
+      toolName: "read",
+      state: mockAgentState,
+    }));
 
     expect(next.session.messages).toHaveLength(1);
     expect(next.session.messages[0]).toMatchObject({
-      id: "t1",
+      id: "tc1",
       role: "tool",
       toolName: "read",
       isStreaming: true,
     });
   });
 
-  test("tool_end updates tool message with input/output", () => {
+  test("ToolCallEnd updates tool message with input/output by toolCallId", () => {
     let state = makeState();
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "tool_start", toolCallId: "tc1", toolName: "read", messageId: "t1" } });
+    state = appReducer(state, agentEvent({
+      event: AgentEventType.ToolCallStart,
+      toolCallId: "tc1",
+      toolName: "read",
+      state: mockAgentState,
+    }));
+    state = appReducer(state, agentEvent({
+      event: AgentEventType.ToolCallEnd,
+      toolCallId: "tc1",
+      toolName: "read",
+      input: { path: "foo.txt" },
+      output: "content",
+      state: mockAgentState,
+    }));
 
-    const toolEnd: AgentRunnerEvent = { type: "tool_end", toolCallId: "tc1", input: { path: "foo.txt" }, output: "content" };
-    const next = appReducer(state, { type: "AGENT_EVENT", event: toolEnd });
-
-    const toolMsg = next.session.messages.find((m) => m.id === "t1");
+    const toolMsg = state.session.messages.find((m) => m.id === "tc1");
     expect(toolMsg).toBeDefined();
     expect(toolMsg?.toolInput).toEqual({ path: "foo.txt" });
     expect(toolMsg?.toolOutput).toBe("content");
@@ -166,13 +180,16 @@ describe("appReducer: AGENT_EVENT - tool", () => {
   });
 });
 
-describe("appReducer: AGENT_EVENT - turn_end", () => {
-  test("updates token counts and context", () => {
+describe("appReducer: AGENT_EVENT - TurnEnd", () => {
+  test("updates token counts and context from step and state", () => {
     const state = makeState();
     const newCtx = { messages: [{ role: "assistant", content: "done" }] };
-    const event: AgentRunnerEvent = { type: "turn_end", inputTokens: 50, outputTokens: 100, context: newCtx };
-
-    const next = appReducer(state, { type: "AGENT_EVENT", event });
+    const step: StepResult = { text: "", toolCalls: [], toolResults: [], finishReason: "end_turn", inputTokens: 50, outputTokens: 100, responseMessages: [] };
+    const next = appReducer(state, agentEvent({
+      event: AgentEventType.TurnEnd,
+      step,
+      state: { ...mockAgentState, context: newCtx },
+    }));
 
     expect(next.session.totalInputTokens).toBe(50);
     expect(next.session.totalOutputTokens).toBe(100);
@@ -180,31 +197,28 @@ describe("appReducer: AGENT_EVENT - turn_end", () => {
   });
 });
 
-describe("appReducer: AGENT_EVENT - agent_end", () => {
+describe("appReducer: AGENT_EVENT - AgentEnd", () => {
   test("sets status to idle and clears pending prompt", () => {
     let state = makeState();
     const ac = new AbortController();
     state = appReducer(state, { type: "SUBMIT_PROMPT", text: "go", abortController: ac });
 
-    const next = appReducer(state, { type: "AGENT_EVENT", event: { type: "agent_end" } });
+    const next = appReducer(state, agentEvent({ event: AgentEventType.AgentEnd, state: mockAgentState }));
 
     expect(next.status.kind).toBe("idle");
     expect(next.pendingPrompt).toBeNull();
   });
 });
 
-describe("appReducer: AGENT_EVENT - error", () => {
+describe("appReducer: SET_STATUS - error", () => {
   test("sets error status with message", () => {
     const state = makeState();
-    const event: AgentRunnerEvent = { type: "error", message: "something broke" };
-
-    const next = appReducer(state, { type: "AGENT_EVENT", event });
+    const next = appReducer(state, { type: "SET_STATUS", status: { kind: "error", message: "something broke" } });
 
     expect(next.status.kind).toBe("error");
     if (next.status.kind === "error") {
       expect(next.status.message).toBe("something broke");
     }
-    expect(next.pendingPrompt).toBeNull();
   });
 });
 
@@ -234,7 +248,12 @@ describe("appReducer: SLASH_EFFECT", () => {
   test("clear resets session", () => {
     let state = makeState();
     state = appReducer(state, { type: "SLASH_EFFECT", effect: { kind: "add_message", message: { id: "x", role: "user", text: "hi", isStreaming: false } } });
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "turn_end", inputTokens: 10, outputTokens: 20, context: { messages: [] } } });
+    const step: StepResult = { text: "", toolCalls: [], toolResults: [], finishReason: "end_turn", inputTokens: 10, outputTokens: 20, responseMessages: [] };
+    state = appReducer(state, agentEvent({
+      event: AgentEventType.TurnEnd,
+      step,
+      state: { ...mockAgentState, context: { messages: [] } },
+    }));
 
     const next = appReducer(state, { type: "SLASH_EFFECT", effect: { kind: "clear" } });
 
@@ -295,19 +314,24 @@ describe("appReducer: SELECT_MODEL", () => {
 });
 
 describe("appReducer: full flow", () => {
-  test("submit -> message stream -> agent_end", () => {
+  test("submit -> message stream -> AgentEnd", () => {
     let state = makeState();
     const ac = new AbortController();
+    const step: StepResult = { text: "", toolCalls: [], toolResults: [], finishReason: "end_turn", inputTokens: 10, outputTokens: 20, responseMessages: [] };
 
     state = appReducer(state, { type: "SUBMIT_PROMPT", text: "test", abortController: ac });
     expect(state.pendingPrompt).toBe("test");
     expect(state.status.kind).toBe("running");
 
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "message_start", messageId: "m1" } });
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "message_delta", messageId: "m1", delta: "Hi" } });
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "message_end", messageId: "m1" } });
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "turn_end", inputTokens: 10, outputTokens: 20, context: { messages: [] } } });
-    state = appReducer(state, { type: "AGENT_EVENT", event: { type: "agent_end" } });
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageStart, state: mockAgentState }));
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageDelta, delta: "Hi", state: mockAgentState }));
+    state = appReducer(state, agentEvent({ event: AgentEventType.MessageEnd, state: mockAgentState }));
+    state = appReducer(state, agentEvent({
+      event: AgentEventType.TurnEnd,
+      step,
+      state: { ...mockAgentState, context: { messages: [] } },
+    }));
+    state = appReducer(state, agentEvent({ event: AgentEventType.AgentEnd, state: mockAgentState }));
 
     expect(state.status.kind).toBe("idle");
     expect(state.pendingPrompt).toBeNull();

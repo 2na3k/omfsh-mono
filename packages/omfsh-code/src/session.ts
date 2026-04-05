@@ -41,8 +41,8 @@ export function patchUiMessage(s: Session, id: string, patch: Partial<UiMessage>
 export function updateTokenCounts(s: Session, input: number, output: number): Session {
   return {
     ...s,
-    totalInputTokens: s.totalInputTokens + input,
-    totalOutputTokens: s.totalOutputTokens + output,
+    totalInputTokens: input,                         // Latest turn only — reflects current context size
+    totalOutputTokens: s.totalOutputTokens + output, // Cumulative generated tokens
   };
 }
 

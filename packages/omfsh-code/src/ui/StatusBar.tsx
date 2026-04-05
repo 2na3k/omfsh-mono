@@ -10,10 +10,9 @@ interface StatusBarProps {
 export function StatusBar({ session }: StatusBarProps) {
   const { modelId, totalInputTokens, totalOutputTokens } = session;
   const def = MODELS[modelId];
-  const usedTokens = totalInputTokens + totalOutputTokens;
   const contextWindow = def.contextWindow;
 
-  const ctxLabel = `ctx: ${usedTokens.toLocaleString()} / ${contextWindow.toLocaleString()}`;
+  const ctxLabel = `ctx: ${totalInputTokens.toLocaleString()} / ${contextWindow.toLocaleString()} · out: ${totalOutputTokens.toLocaleString()}`;
   const providerLabel = `${def.provider} · ${modelId}`;
 
   return (

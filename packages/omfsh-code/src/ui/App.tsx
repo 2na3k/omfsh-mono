@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
-import { Box, useInput } from "ink";
+import { Box, Text, useInput } from "ink";
 import { MessageList } from "./MessageList.js";
-import { InputBox } from "./InputBox.js";
+import { InputBox, Spinner } from "./InputBox.js";
 import { StatusBar } from "./StatusBar.js";
 import { ModelPicker } from "./ModelPicker.js";
 import { SlashCommandMenu, SLASH_COMMANDS } from "./SlashCommandMenu.js";
@@ -25,6 +25,8 @@ export function App({ modelId }: AppProps) {
     pendingPrompt: null,
     showModelPicker: false,
     slashMenuIndex: -1,
+    streamingMessageId: null,
+    streamingReasoningId: null,
   });
 
   useAgentRunner(state, dispatch);
@@ -48,7 +50,7 @@ export function App({ modelId }: AppProps) {
       const selected = slashCommands[state.slashMenuIndex]?.command;
       if (selected) {
         const cmd = parseSlashCommand(selected);
-        const effect = handleSlashCommand(cmd, state.session);
+        const effect = handleSlashCommand(cmd);
         dispatch({ type: "SLASH_EFFECT", effect });
         dispatch({ type: "INPUT_CHANGE", text: "" });
       }
@@ -68,7 +70,7 @@ export function App({ modelId }: AppProps) {
 
     if (trimmed.startsWith("/")) {
       const cmd = parseSlashCommand(trimmed);
-      const effect = handleSlashCommand(cmd, state.session);
+      const effect = handleSlashCommand(cmd);
       dispatch({ type: "SLASH_EFFECT", effect });
       dispatch({ type: "INPUT_CHANGE", text: "" });
     } else {
@@ -93,6 +95,11 @@ export function App({ modelId }: AppProps) {
   return (
     <Box flexDirection="column" height="100%">
       <MessageList messages={state.session.messages} />
+      {isRunning && (
+        <Box paddingLeft={1}>
+          <Spinner /><Text> running...</Text>
+        </Box>
+      )}
       <InputBox
         value={state.inputText}
         onChange={(text) => dispatch({ type: "INPUT_CHANGE", text })}

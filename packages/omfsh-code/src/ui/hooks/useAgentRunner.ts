@@ -15,7 +15,7 @@ export function useAgentRunner(state: AppState, dispatch: (action: AppAction) =>
     }, abortController.signal).catch((err: unknown) => {
       if (!abortController.signal.aborted) {
         const message = err instanceof Error ? err.message : String(err);
-        dispatch({ type: "AGENT_EVENT", event: { type: "error", message } });
+        dispatch({ type: "SET_STATUS", status: { kind: "error", message } });
       }
     });
 

@@ -12,9 +12,8 @@ export interface ModelDefinition {
 
 const LOCAL_ENDPOINT = "http://localhost:8080";
 
-// this is bulshit: https://opencode.ai/docs/zen#endpoints
+// FUCK: https://opencode.ai/docs/zen#endpoints
 const ZEN_OPENAI_URL = "https://opencode.ai/zen/v1";
-const ZEN_ANTHROPIC_URL = "https://opencode.ai/zen/go/v1/";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 const OLLAMA_CLOUD_URL = "https://ollama.com/api/chat"
 const OPENROUTER_URL = "https://openrouter.ai/api/v1"

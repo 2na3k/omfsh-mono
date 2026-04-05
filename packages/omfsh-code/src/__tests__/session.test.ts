@@ -120,12 +120,12 @@ describe("patchUiMessage", () => {
 });
 
 describe("updateTokenCounts", () => {
-  test("accumulates tokens", () => {
+  test("totalInputTokens reflects latest turn only (current context size)", () => {
     let s = createSession();
     s = updateTokenCounts(s, 100, 200);
-    s = updateTokenCounts(s, 50, 75);
-    expect(s.totalInputTokens).toBe(150);
-    expect(s.totalOutputTokens).toBe(275);
+    s = updateTokenCounts(s, 500, 75);
+    expect(s.totalInputTokens).toBe(500);   // latest turn, not cumulative
+    expect(s.totalOutputTokens).toBe(275);  // cumulative output
   });
 });
 

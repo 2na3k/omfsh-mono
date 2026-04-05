@@ -4,7 +4,11 @@
 Please read the module descriptions when you're starting:
 - TBU
 
+## Overall rules
+- KEEP ALL THE SWEAR WORDS COMMENTS I HAVE
+
 ## Development loop
+Must follow, only break the loop if user asked for it
 ```
 1. Build features
 2. Write unit test(s) for the change

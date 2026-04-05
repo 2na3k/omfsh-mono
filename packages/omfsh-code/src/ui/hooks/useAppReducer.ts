@@ -1,4 +1,6 @@
 import { useReducer } from "react";
+import { AgentEventType } from "@2na3k/omfsh-darwin";
+import type { LoopYield } from "@2na3k/omfsh-darwin";
 import {
   appendUiMessage,
   patchUiMessage,
@@ -7,7 +9,7 @@ import {
   clearSession,
   setModel,
 } from "../../session.js";
-import type { Session, AppStatus, AgentRunnerEvent, SlashEffect, UiMessage } from "../../types.js";
+import type { Session, AppStatus, SlashEffect, UiMessage } from "../../types.js";
 import type { ModelId } from "@2na3k/omfsh-provider";
 
 export interface AppState {
@@ -17,11 +19,13 @@ export interface AppState {
   pendingPrompt: string | null;
   showModelPicker: boolean;
   slashMenuIndex: number;
+  streamingMessageId: string | null;
+  streamingReasoningId: string | null;
 }
 
 export type AppAction =
   | { type: "SUBMIT_PROMPT"; text: string; abortController: AbortController }
-  | { type: "AGENT_EVENT"; event: AgentRunnerEvent }
+  | { type: "AGENT_EVENT"; event: LoopYield }
   | { type: "SLASH_EFFECT"; effect: SlashEffect }
   | { type: "SET_STATUS"; status: AppStatus }
   | { type: "INPUT_CHANGE"; text: string }
@@ -29,71 +33,81 @@ export type AppAction =
   | { type: "TOGGLE_MODEL_PICKER"; show: boolean }
   | { type: "SELECT_MODEL"; modelId: ModelId };
 
-function applyAgentEvent(state: AppState, event: AgentRunnerEvent): AppState {
-  switch (event.type) {
-    case "message_start": {
-      const msg: UiMessage = { id: event.messageId, role: "assistant", text: "", isStreaming: true };
-      return { ...state, session: appendUiMessage(state.session, msg) };
+function applyAgentEvent(state: AppState, event: LoopYield): AppState {
+  switch (event.event) {
+    case AgentEventType.MessageStart: {
+      const id = crypto.randomUUID();
+      const msg: UiMessage = { id, role: "assistant", text: "", isStreaming: true };
+      return { ...state, streamingMessageId: id, session: appendUiMessage(state.session, msg) };
     }
-    case "message_delta": {
-      const current = state.session.messages.find((m) => m.id === event.messageId);
+    case AgentEventType.MessageDelta: {
+      if (!state.streamingMessageId) return state;
+      const current = state.session.messages.find((m) => m.id === state.streamingMessageId);
       return {
         ...state,
-        session: patchUiMessage(state.session, event.messageId, { text: (current?.text ?? "") + event.delta }),
+        session: patchUiMessage(state.session, state.streamingMessageId, {
+          text: (current?.text ?? "") + event.delta,
+        }),
       };
     }
-    case "message_end": {
-      return { ...state, session: patchUiMessage(state.session, event.messageId, { isStreaming: false }) };
-    }
-    case "reasoning_start": {
-      const msg: UiMessage = { id: event.messageId, role: "reasoning", text: "", isStreaming: true };
-      return { ...state, session: appendUiMessage(state.session, msg) };
-    }
-    case "reasoning_delta": {
-      const current = state.session.messages.find((m) => m.id === event.messageId);
+    case AgentEventType.MessageEnd: {
+      if (!state.streamingMessageId) return state;
+      const id = state.streamingMessageId;
       return {
         ...state,
-        session: patchUiMessage(state.session, event.messageId, { text: (current?.text ?? "") + event.delta }),
+        streamingMessageId: null,
+        session: patchUiMessage(state.session, id, { isStreaming: false }),
       };
     }
-    case "reasoning_end": {
-      return { ...state, session: patchUiMessage(state.session, event.messageId, { isStreaming: false }) };
+    case AgentEventType.ReasoningStart: {
+      const id = crypto.randomUUID();
+      const msg: UiMessage = { id, role: "reasoning", text: "", isStreaming: true };
+      return { ...state, streamingReasoningId: id, session: appendUiMessage(state.session, msg) };
     }
-    case "tool_start": {
+    case AgentEventType.ReasoningDelta: {
+      if (!state.streamingReasoningId) return state;
+      const current = state.session.messages.find((m) => m.id === state.streamingReasoningId);
+      return {
+        ...state,
+        session: patchUiMessage(state.session, state.streamingReasoningId, {
+          text: (current?.text ?? "") + event.delta,
+        }),
+      };
+    }
+    case AgentEventType.ReasoningEnd: {
+      if (!state.streamingReasoningId) return state;
+      const id = state.streamingReasoningId;
+      return {
+        ...state,
+        streamingReasoningId: null,
+        session: patchUiMessage(state.session, id, { isStreaming: false }),
+      };
+    }
+    case AgentEventType.ToolCallStart: {
       const msg: UiMessage = {
-        id: event.messageId,
+        id: event.toolCallId,
         role: "tool",
         toolName: event.toolName,
         isStreaming: true,
       };
       return { ...state, session: appendUiMessage(state.session, msg) };
     }
-    case "tool_end": {
-      // Find the tool message by matching toolName; the messageId was stored on tool_start
-      // We need to find by toolCallId-associated messageId — stored in agent-runner, not here.
-      // We match by the last streaming tool message with no output yet.
-      const toolMsg = [...state.session.messages].reverse().find(
-        (m) => m.role === "tool" && m.isStreaming && m.toolOutput == null,
-      );
-      if (!toolMsg) return state;
+    case AgentEventType.ToolCallEnd: {
       return {
         ...state,
-        session: patchUiMessage(state.session, toolMsg.id, {
+        session: patchUiMessage(state.session, event.toolCallId, {
           toolInput: event.input,
           toolOutput: event.output,
           isStreaming: false,
         }),
       };
     }
-    case "turn_end": {
-      const s = updateTokenCounts(state.session, event.inputTokens, event.outputTokens);
-      return { ...state, session: syncContext(s, event.context) };
+    case AgentEventType.TurnEnd: {
+      const s = updateTokenCounts(state.session, event.step.inputTokens, event.step.outputTokens);
+      return { ...state, session: syncContext(s, event.state.context) };
     }
-    case "agent_end": {
+    case AgentEventType.AgentEnd: {
       return { ...state, status: { kind: "idle" }, pendingPrompt: null };
-    }
-    case "error": {
-      return { ...state, status: { kind: "error", message: event.message }, pendingPrompt: null };
     }
     default:
       return state;
