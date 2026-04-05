@@ -2,6 +2,7 @@ import type { UiMessage } from "../../../shared/types.js";
 import { Text } from "../shared/Text.js";
 import { ToolCall } from "./ToolCall.js";
 import { StreamingText } from "./StreamingText.js";
+import { MarkdownRenderer } from "../shared/MarkdownRenderer.js";
 
 interface MessageProps {
   message: UiMessage;
@@ -61,9 +62,7 @@ export function Message({ message }: MessageProps) {
         {message.isStreaming ? (
           <StreamingText text={message.text ?? ""} />
         ) : (
-          <Text variant="sm" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-            {message.text}
-          </Text>
+          <MarkdownRenderer content={message.text ?? ""} />
         )}
       </div>
     </div>
