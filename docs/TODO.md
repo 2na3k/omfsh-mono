@@ -1,7 +1,12 @@
-# Todo
+# `TODO.md`
 - [x] Spinner should be on top of the text box.
 - [x] Doing: The interface of `AgentRunnerEvent` in `code` is duplicated with `LoopYield`
 - [ ] Fix the providers: nothing is working except `llamacpp`
   - [ ] The Google requires different 
 - [x] Context handling: The context register below the one is not working
 - [x] ctrl + c would stop the current process of dealing with whatever it is
+- [ ] Centralized config for `omfsh-code`
+  - `~/.darwin` for the global config folder
+  - Class `Config` to try the load config(s)
+- [ ] Tool run in parallel, and can be config through `NUMBER_PARALLEL_TOOL_RUN=<number>`
+- [ ] Terminal: Diff, Edit diff and diff render on darwin-code
