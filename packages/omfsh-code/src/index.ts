@@ -12,4 +12,4 @@ if (arg && !isValidModelId(arg)) {
   console.error(`Unknown model: "${arg}". Starting with default model: ${DEFAULT_MODEL_ID}`);
 }
 
-render(React.createElement(App, { modelId }));
+render(React.createElement(App, { modelId }), { exitOnCtrlC: false });

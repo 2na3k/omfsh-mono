@@ -1,8 +1,10 @@
 # `AGENTS.md`: Development rules
 
 ## Prerequisites
-Please read the module descriptions when you're starting:
-- TBU
+Please read the `README.md` of each module in this project when you're starting:
+- `@2na3k/omfsh-provider`: The centralized providers, and behavior of those providers
+- `@2na3k/omfsh-darwin`: The core agent framework
+- `@2na3k/omfsh-code`: The Claude Code of Fish
 
 ## Overall rules
 - KEEP ALL THE SWEAR WORDS COMMENTS I HAVE
@@ -13,7 +15,7 @@ Must follow, only break the loop if user asked for it
 1. Build features
 2. Write unit test(s) for the change
 3. Run unit tests and smoke tests (if needed)
-4. Lint + format code
+4. Lint + format code (eslint)
 ```
 
 ## Answer style

@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput, useApp } from "ink";
 import { MessageList } from "./MessageList.js";
 import { InputBox, Spinner } from "./InputBox.js";
 import { StatusBar } from "./StatusBar.js";
@@ -16,6 +16,7 @@ interface AppProps {
 }
 
 export function App({ modelId }: AppProps) {
+  const { exit } = useApp();
   const slashConsumed = useRef(false);
 
   const [state, dispatch] = useAppReducer({
@@ -37,6 +38,16 @@ export function App({ modelId }: AppProps) {
   const showSlashMenu = !isRunning && state.inputText.startsWith("/") && slashCommands.length > 0;
 
   useInput((_input, key) => {
+    if (key.ctrl && _input === "c") {
+      if (state.status.kind === "running") {
+        state.status.abortController.abort();
+        dispatch({ type: "SET_STATUS", status: { kind: "idle" } });
+      } else {
+        exit();
+      }
+      return;
+    }
+
     if (!showSlashMenu) return;
 
     if (key.upArrow) {
@@ -78,43 +89,39 @@ export function App({ modelId }: AppProps) {
     }
   }
 
-  if (state.showModelPicker) {
-    return (
-      <Box flexDirection="column" height="100%">
+  return (
+    <Box flexDirection="column" height="100%">
+      <MessageList messages={state.session.messages} />
+      {state.showModelPicker ? (
         <ModelPicker
           currentModelId={state.session.modelId}
           onSelect={(id) => dispatch({ type: "SELECT_MODEL", modelId: id })}
           onCancel={() => dispatch({ type: "TOGGLE_MODEL_PICKER", show: false })}
         />
-        <Box flexGrow={1} />
-        <StatusBar session={state.session} />
-      </Box>
-    );
-  }
-
-  return (
-    <Box flexDirection="column" height="100%">
-      <MessageList messages={state.session.messages} />
-      {isRunning && (
-        <Box paddingLeft={1}>
-          <Spinner /><Text> running...</Text>
-        </Box>
-      )}
-      <InputBox
-        value={state.inputText}
-        onChange={(text) => dispatch({ type: "INPUT_CHANGE", text })}
-        onSubmit={handleSubmit}
-        disabled={isRunning}
-      />
-      {showSlashMenu && (
-        <SlashCommandMenu
-          filter={slashFilter}
-          selectedIndex={state.slashMenuIndex}
-          onSelect={(cmd) => {
-            dispatch({ type: "INPUT_CHANGE", text: cmd });
-          }}
-          onNavigate={(index) => dispatch({ type: "SLASH_MENU_NAVIGATE", index })}
-        />
+      ) : (
+        <>
+          {isRunning && (
+            <Box paddingLeft={1}>
+              <Spinner /><Text> running...</Text>
+            </Box>
+          )}
+          <InputBox
+            value={state.inputText}
+            onChange={(text) => dispatch({ type: "INPUT_CHANGE", text })}
+            onSubmit={handleSubmit}
+            disabled={isRunning}
+          />
+          {showSlashMenu && (
+            <SlashCommandMenu
+              filter={slashFilter}
+              selectedIndex={state.slashMenuIndex}
+              onSelect={(cmd) => {
+                dispatch({ type: "INPUT_CHANGE", text: cmd });
+              }}
+              onNavigate={(index) => dispatch({ type: "SLASH_MENU_NAVIGATE", index })}
+            />
+          )}
+        </>
       )}
       <StatusBar session={state.session} />
     </Box>
