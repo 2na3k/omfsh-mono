@@ -1,5 +1,5 @@
 # `TODO.md`
-- [x] Spinner should be on top of the text box.
+- [x] Spinner should be on top of the text box
 - [x] Doing: The interface of `AgentRunnerEvent` in `code` is duplicated with `LoopYield`
 - [ ] Fix the providers: nothing is working except `llamacpp`
   - [ ] The Google requires different 
@@ -7,6 +7,7 @@
 - [x] ctrl + c would stop the current process of dealing with whatever it is
 - [ ] Centralized config for `omfsh-code`
   - `~/.darwin` for the global config folder
-  - Class `Config` to try the load config(s)
+  - Class `Config` to try the load config(s) in `omfsh-code`
 - [ ] Tool run in parallel, and can be config through `NUMBER_PARALLEL_TOOL_RUN=<number>`
 - [ ] Terminal: Diff, Edit diff and diff render on darwin-code
+- [ ] Github pipeline to push to npm
