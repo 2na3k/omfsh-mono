@@ -1,0 +1,49 @@
+:root {
+  /* backgrounds */
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --surface-raised: #1a1a1a;
+
+  /* borders */
+  --border: #2a2a2a;
+  --border-active: #444;
+  --border-focus: #00ff88;
+
+  /* text */
+  --text: #e0e0e0;
+  --text-secondary: #888;
+  --text-muted: #555;
+
+  /* accent */
+  --accent: #00ff88;
+  --accent-dim: #00cc6a;
+
+  /* semantic */
+  --error: #ff4444;
+  --warning: #ffaa00;
+
+  /* type scale — monospace rhythm */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+
+  /* spacing — 4px base */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* layout */
+  --panel-min-left: 240px;
+  --panel-min-center: 400px;
+  --panel-min-right: 280px;
+  --resizer-width: 4px;
+}
