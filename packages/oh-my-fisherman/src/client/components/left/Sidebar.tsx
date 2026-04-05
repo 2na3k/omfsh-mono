@@ -93,7 +93,7 @@ export function Sidebar() {
         }}
       >
         <Text variant="lg" serif style={{ fontStyle: "italic", letterSpacing: "-0.01em" }}>
-          Fisherman
+          Fisherman 🐟︎
         </Text>
         <button
           onClick={() => setCreating(true)}
@@ -156,9 +156,9 @@ export function Sidebar() {
         </div>
         <SourceList />
         <div style={{ padding: "var(--sp-3) var(--sp-4)" }}>
-          <SourceUpload />
+          <SourceUpload key={activeNotebookId} />
           <div style={{ marginTop: "var(--sp-3)" }}>
-            <UrlInput />
+            <UrlInput key={activeNotebookId} />
           </div>
         </div>
       </div>

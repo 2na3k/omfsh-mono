@@ -1,4 +1,4 @@
-import { generate, streamGenerate } from "@2na3k/omfsh-provider";
+import { generate, streamGenerate, executeToolsParallel, buildToolMessage } from "@2na3k/omfsh-provider";
 import { buildContext, appendStep } from "./proxy.js";
 import { AgentEventType } from "./types.js";
 import type { AgentConfig, AgentContext, AgentState, LoopYield, StepResult } from "./types.js";
@@ -37,6 +37,7 @@ export async function* runAgentLoop(
         tools: ctx.tools,
         temperature: config.temperature,
         maxTokens: config.maxTokens,
+        executeTools: config.parallelToolCalls ? false : undefined,
       })) {
         switch (chunk.type) {
           case "text-start":    yield { event: AgentEventType.MessageStart,   state: state(true) }; break;
@@ -48,8 +49,18 @@ export async function* runAgentLoop(
           case "tool-call-start": yield { event: AgentEventType.ToolCallStart, toolCallId: chunk.toolCallId, toolName: chunk.toolName, state: state() }; break;
           case "tool-call-delta": yield { event: AgentEventType.ToolCallDelta, toolCallId: chunk.toolCallId, delta: chunk.delta, state: state() }; break;
           case "tool-call-end":   yield { event: AgentEventType.ToolCallEnd,   toolCallId: chunk.toolCallId, toolName: chunk.toolName, input: chunk.input, output: chunk.output, state: state() }; break;
-          case "finish":
+          case "finish": {
             step = chunk.result;
+            if (config.parallelToolCalls && ctx.tools && step.toolCalls.length > 0) {
+              yield { event: AgentEventType.ToolBatchStart, toolCallIds: step.toolCalls.map((tc) => tc.toolCallId), state: state() };
+              const toolResults = await executeToolsParallel(ctx.tools, step.toolCalls);
+              for (const r of toolResults) {
+                const tc = step.toolCalls.find((c) => c.toolCallId === r.toolCallId)!;
+                yield { event: AgentEventType.ToolCallEnd, toolCallId: r.toolCallId, toolName: r.toolName, input: tc.input, output: r.output, state: state() };
+              }
+              yield { event: AgentEventType.ToolBatchEnd, results: toolResults, state: state() };
+              step = { ...step, toolResults, responseMessages: [...step.responseMessages, buildToolMessage(toolResults)] };
+            }
             steps.push(step);
             totalInputTokens += step.inputTokens;
             totalOutputTokens += step.outputTokens;
@@ -57,15 +68,29 @@ export async function* runAgentLoop(
             yield { event: AgentEventType.TurnEnd, step, state: state() };
             if (step.finishReason !== "tool-calls") done = true;
             break;
+          }
         }
       }
     } else {
-      const result = await generate(config.modelId, ctx.messages, {
+      const raw = await generate(config.modelId, ctx.messages, {
         system: ctx.systemPrompt,
         tools: ctx.tools,
         temperature: config.temperature,
         maxTokens: config.maxTokens,
+        executeTools: config.parallelToolCalls ? false : undefined,
       });
+
+      let result = raw;
+      if (config.parallelToolCalls && ctx.tools && raw.toolCalls.length > 0) {
+        yield { event: AgentEventType.ToolBatchStart, toolCallIds: raw.toolCalls.map((tc) => tc.toolCallId), state: state() };
+        const toolResults = await executeToolsParallel(ctx.tools, raw.toolCalls);
+        for (const r of toolResults) {
+          const tc = raw.toolCalls.find((c) => c.toolCallId === r.toolCallId)!;
+          yield { event: AgentEventType.ToolCallEnd, toolCallId: r.toolCallId, toolName: r.toolName, input: tc.input, output: r.output, state: state() };
+        }
+        yield { event: AgentEventType.ToolBatchEnd, results: toolResults, state: state() };
+        result = { ...raw, toolResults, responseMessages: [...raw.responseMessages, buildToolMessage(toolResults)] };
+      }
 
       steps.push(result);
       totalInputTokens += result.inputTokens;

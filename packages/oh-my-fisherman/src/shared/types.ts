@@ -75,4 +75,6 @@ export type SerializedAgentEvent =
   | { event: "reasoning.end" }
   | { event: "tool_call.start"; toolCallId: string; toolName: string }
   | { event: "tool_call.delta"; toolCallId: string; delta: string }
-  | { event: "tool_call.end"; toolCallId: string; toolName: string; input: unknown; output: unknown };
+  | { event: "tool_call.end"; toolCallId: string; toolName: string; input: unknown; output: unknown }
+  | { event: "tool_batch.start"; toolCallIds: string[] }
+  | { event: "tool_batch.end" };

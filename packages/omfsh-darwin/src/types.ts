@@ -1,4 +1,4 @@
-import type { ModelId, ToolMap, GenerateResult, Message } from "@2na3k/omfsh-provider";
+import type { ModelId, ToolMap, GenerateResult, Message, ToolResultRecord } from "@2na3k/omfsh-provider";
 
 export type StepResult = GenerateResult;
 
@@ -16,6 +16,8 @@ export enum AgentEventType {
   ToolCallStart  = "tool_call.start",
   ToolCallDelta  = "tool_call.delta",
   ToolCallEnd    = "tool_call.end",
+  ToolBatchStart = "tool_batch.start",
+  ToolBatchEnd   = "tool_batch.end",
 }
 
 export interface AgentContext {
@@ -30,6 +32,7 @@ export interface AgentConfig {
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
+  parallelToolCalls?: boolean; // default: false — uses AI SDK internal execution
 }
 
 export interface AgentState {
@@ -53,6 +56,8 @@ export type LoopYield =
   | { event: AgentEventType.ToolCallStart;  toolCallId: string; toolName: string; state: AgentState }
   | { event: AgentEventType.ToolCallDelta;  toolCallId: string; delta: string; state: AgentState }
   | { event: AgentEventType.ToolCallEnd;    toolCallId: string; toolName: string; input: unknown; output: unknown; state: AgentState }
+  | { event: AgentEventType.ToolBatchStart; toolCallIds: string[]; state: AgentState }
+  | { event: AgentEventType.ToolBatchEnd;   results: ToolResultRecord[]; state: AgentState }
   | { event: AgentEventType.TurnEnd;        step: StepResult; state: AgentState }
   | { event: AgentEventType.AgentEnd;       state: AgentState };
 

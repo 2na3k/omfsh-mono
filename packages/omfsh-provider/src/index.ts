@@ -1,7 +1,7 @@
 export { createProvider, loadProviderFromEnv } from "./providers/index.js";
 export { MODELS, type ModelDefinition, type ModelId } from "./models.js";
 export { getModel } from "./get-model.js";
-export { generate, streamGenerate } from "./generate.js";
+export { generate, streamGenerate, executeToolsParallel, buildToolMessage } from "./generate.js";
 export {
   ModelProvider,
   type ProviderConfig,

@@ -41,17 +41,57 @@ function toModelMessages(messages: Message[]): ModelMessage[] {
   });
 }
 
-function toToolSet(tools: ToolMap): ToolSet {
+function toToolSet(tools: ToolMap, withExecute: boolean): ToolSet {
   return Object.fromEntries(
-    Object.entries(tools).map(([name, def]) => [
-      name,
-      tool({
+    Object.entries(tools).map(([name, def]) => {
+      if (withExecute) {
+        return [name, tool({
+          description: def.description,
+          inputSchema: jsonSchema(def.parameters as JSONSchema7),
+          execute: (input: unknown) => def.execute(input),
+        })];
+      }
+      return [name, tool({
         description: def.description,
         inputSchema: jsonSchema(def.parameters as JSONSchema7),
-        execute: (input: unknown) => def.execute(input),
-      }),
-    ]),
+      })];
+    }),
   ) as ToolSet;
+}
+
+export async function executeToolsParallel(
+  tools: ToolMap,
+  toolCalls: ToolCallRecord[],
+): Promise<ToolResultRecord[]> {
+  const settled = await Promise.allSettled(
+    toolCalls.map(async (tc) => {
+      const def = tools[tc.toolName];
+      if (!def) throw new Error(`Unknown tool: ${tc.toolName}`);
+      const output = await def.execute(tc.input);
+      return { toolCallId: tc.toolCallId, toolName: tc.toolName, output };
+    }),
+  );
+
+  return settled.map((r, i): ToolResultRecord => {
+    if (r.status === "fulfilled") return r.value;
+    return {
+      toolCallId: toolCalls[i].toolCallId,
+      toolName: toolCalls[i].toolName,
+      output: { error: r.reason instanceof Error ? r.reason.message : String(r.reason) },
+    };
+  });
+}
+
+export function buildToolMessage(results: ToolResultRecord[]): ToolMessage {
+  return {
+    role: "tool",
+    content: results.map((r) => ({
+      type: "tool-result" as const,
+      toolCallId: r.toolCallId,
+      toolName: r.toolName,
+      output: r.output,
+    })),
+  };
 }
 
 function fromResponseMessages(msgs: ResponseMessage[]): Message[] {
@@ -104,7 +144,7 @@ export async function generate(
     model,
     system: options.system,
     messages: toModelMessages(messages),
-    tools: options.tools ? toToolSet(options.tools) : undefined,
+    tools: options.tools ? toToolSet(options.tools, options.executeTools ?? true) : undefined,
     stopWhen: stepCountIs(1),
     temperature: options.temperature,
     maxOutputTokens: options.maxTokens,
@@ -131,7 +171,7 @@ export async function* streamGenerate(
     model,
     system: options.system,
     messages: toModelMessages(messages),
-    tools: options.tools ? toToolSet(options.tools) : undefined,
+    tools: options.tools ? toToolSet(options.tools, options.executeTools ?? true) : undefined,
     stopWhen: stepCountIs(1),
     temperature: options.temperature,
     maxOutputTokens: options.maxTokens,

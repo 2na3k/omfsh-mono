@@ -1,66 +1,100 @@
 import { useState } from "react";
 import type { UiMessage } from "../../../shared/types.js";
 import { Text } from "../shared/Text.js";
-import { Badge } from "../shared/Badge.js";
 
 interface ToolCallProps {
   message: UiMessage;
 }
 
+const TOOL_ICONS: Record<string, string> = {
+  web_search:    "⌕",
+  web_read:      "↗",
+  source_search: "◈",
+  note_write:    "✎",
+  entity_extract: "◎",
+};
+
 export function ToolCall({ message }: ToolCallProps) {
   const [expanded, setExpanded] = useState(false);
+  const isRunning = message.isStreaming;
+  const icon = TOOL_ICONS[message.toolName ?? ""] ?? "◆";
 
   return (
-    <div
-      style={{
-        padding: "var(--sp-2) 0",
-        animation: "fadeIn 0.2s ease",
-      }}
-    >
+    <div style={{ padding: "2px 0", animation: "fadeIn 0.15s ease" }}>
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => !isRunning && setExpanded(!expanded)}
         className="flex items-center gap-2 w-full text-left"
-        style={{ padding: "var(--sp-1) 0" }}
+        style={{
+          padding: "5px 10px",
+          borderRadius: "var(--radius-sm)",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          cursor: isRunning ? "default" : "pointer",
+          transition: "background 0.1s ease",
+        }}
       >
-        <Badge variant={message.isStreaming ? "accent" : "default"}>
+        {/* status dot */}
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            flexShrink: 0,
+            background: isRunning ? "var(--accent)" : "var(--text-muted)",
+            animation: isRunning ? "pulse 1.5s ease infinite" : "none",
+          }}
+        />
+
+        {/* icon + name */}
+        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+          {icon}
+        </span>
+        <Text variant="xs" mono style={{ color: "var(--text-secondary)", flex: 1 }}>
           {message.toolName ?? "tool"}
-        </Badge>
-        {message.isStreaming ? (
-          <Text variant="xs" accent style={{ animation: "pulse 1.5s ease infinite" }}>running</Text>
-        ) : (
-          <Text variant="xs" muted>
-            {expanded ? "collapse" : "expand"}
+        </Text>
+
+        {/* right side */}
+        {isRunning ? (
+          <Text variant="xs" accent style={{ animation: "pulse 1.5s ease infinite" }}>
+            running
           </Text>
+        ) : (
+          <span style={{ color: "var(--text-muted)", fontSize: 10 }}>
+            {expanded ? "▴" : "▾"}
+          </span>
         )}
       </button>
 
-      {expanded && !message.isStreaming && (
+      {expanded && !isRunning && (
         <div
           style={{
-            marginTop: "var(--sp-2)",
-            marginLeft: "var(--sp-2)",
+            margin: "4px 0 4px 10px",
             paddingLeft: "var(--sp-3)",
             borderLeft: "2px solid var(--border)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--sp-2)",
           }}
         >
           {message.toolInput != null && (
-            <div style={{ marginBottom: "var(--sp-2)" }}>
-              <Text variant="xs" secondary weight="medium" style={{ display: "block", marginBottom: 4 }}>
+            <div>
+              <Text variant="xs" muted style={{ display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Input
               </Text>
               <pre
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "var(--text-xs)",
+                  fontSize: 11,
                   color: "var(--text-secondary)",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-all",
-                  maxHeight: 200,
+                  maxHeight: 160,
                   overflow: "auto",
                   background: "var(--surface-raised)",
-                  padding: "var(--sp-3)",
+                  padding: "var(--sp-2) var(--sp-3)",
                   borderRadius: "var(--radius-sm)",
                   border: "1px solid var(--border)",
+                  margin: 0,
                 }}
               >
                 {typeof message.toolInput === "string"
@@ -71,22 +105,23 @@ export function ToolCall({ message }: ToolCallProps) {
           )}
           {message.toolOutput != null && (
             <div>
-              <Text variant="xs" secondary weight="medium" style={{ display: "block", marginBottom: 4 }}>
+              <Text variant="xs" muted style={{ display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Output
               </Text>
               <pre
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "var(--text-xs)",
+                  fontSize: 11,
                   color: "var(--text-secondary)",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-all",
-                  maxHeight: 200,
+                  maxHeight: 160,
                   overflow: "auto",
                   background: "var(--surface-raised)",
-                  padding: "var(--sp-3)",
+                  padding: "var(--sp-2) var(--sp-3)",
                   borderRadius: "var(--radius-sm)",
                   border: "1px solid var(--border)",
+                  margin: 0,
                 }}
               >
                 {typeof message.toolOutput === "string"

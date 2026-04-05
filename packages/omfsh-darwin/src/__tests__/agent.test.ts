@@ -1,5 +1,5 @@
 import { describe, it, expect, mock, beforeEach } from "bun:test";
-import type { GenerateResult } from "@2na3k/omfsh-provider";
+import type { GenerateResult, ToolResultRecord } from "@2na3k/omfsh-provider";
 
 const makeResult = (overrides: Partial<GenerateResult> = {}): GenerateResult => ({
   text: "done",
@@ -23,9 +23,21 @@ async function* defaultStreamGenerate() {
 }
 const mockStreamGenerate = mock(defaultStreamGenerate);
 
+const mockExecuteToolsParallel = mock(
+  async (_tools: unknown, toolCalls: Array<{ toolCallId: string; toolName: string; input: unknown }>): Promise<ToolResultRecord[]> =>
+    toolCalls.map((tc) => ({ toolCallId: tc.toolCallId, toolName: tc.toolName, output: `result-${tc.toolName}` })),
+);
+
+const mockBuildToolMessage = mock((results: ToolResultRecord[]) => ({
+  role: "tool" as const,
+  content: results.map((r) => ({ type: "tool-result" as const, toolCallId: r.toolCallId, toolName: r.toolName, output: r.output })),
+}));
+
 mock.module("@2na3k/omfsh-provider", () => ({
   generate: mockGenerate,
   streamGenerate: mockStreamGenerate,
+  executeToolsParallel: mockExecuteToolsParallel,
+  buildToolMessage: mockBuildToolMessage,
 }));
 
 const { buildContext, appendStep } = await import("../proxy.js");
@@ -181,6 +193,104 @@ describe("runAgentLoop — stream mode", () => {
     expect(events).toContain(AgentEventType.ToolCallStart);
     expect(events).toContain(AgentEventType.ToolCallDelta);
     expect(events).toContain(AgentEventType.ToolCallEnd);
+  });
+});
+
+describe("runAgentLoop — parallelToolCalls", () => {
+  beforeEach(() => {
+    mockGenerate.mockClear();
+    mockStreamGenerate.mockClear();
+    mockExecuteToolsParallel.mockClear();
+    mockBuildToolMessage.mockClear();
+  });
+
+  const tools = {
+    search: { description: "search", parameters: {}, execute: async () => "result" },
+    fetch:  { description: "fetch",  parameters: {}, execute: async () => "fetched" },
+  };
+
+  const toolCallsResult = makeResult({
+    finishReason: "tool-calls",
+    toolCalls: [
+      { toolCallId: "tc1", toolName: "search", input: { q: "foo" } },
+      { toolCallId: "tc2", toolName: "fetch",  input: { url: "bar" } },
+    ],
+    responseMessages: [{ role: "assistant", content: [] }],
+  });
+
+  it("non-stream: emits ToolBatchStart → ToolCallEnd × N → ToolBatchEnd before TurnEnd", async () => {
+    mockGenerate
+      .mockResolvedValueOnce(toolCallsResult)
+      .mockResolvedValueOnce(makeResult({ finishReason: "stop" }));
+
+    const events: string[] = [];
+    for await (const y of runAgentLoop("go", { modelId: "claude-haiku-4-5-20251001", parallelToolCalls: true }, { messages: [], tools })) {
+      events.push(y.event);
+    }
+
+    const batchStart = events.indexOf(AgentEventType.ToolBatchStart);
+    const batchEnd   = events.indexOf(AgentEventType.ToolBatchEnd);
+    const turnEnd    = events.findIndex((e, i) => e === AgentEventType.TurnEnd && i > batchEnd);
+    expect(batchStart).toBeGreaterThan(-1);
+    expect(batchEnd).toBeGreaterThan(batchStart);
+    expect(turnEnd).toBeGreaterThan(batchEnd);
+    expect(events.filter((e) => e === AgentEventType.ToolCallEnd)).toHaveLength(2);
+  });
+
+  it("non-stream: ToolBatchStart carries all toolCallIds", async () => {
+    mockGenerate
+      .mockResolvedValueOnce(toolCallsResult)
+      .mockResolvedValueOnce(makeResult({ finishReason: "stop" }));
+
+    for await (const y of runAgentLoop("go", { modelId: "claude-haiku-4-5-20251001", parallelToolCalls: true }, { messages: [], tools })) {
+      if (y.event === AgentEventType.ToolBatchStart) {
+        expect(y.toolCallIds).toEqual(["tc1", "tc2"]);
+      }
+    }
+  });
+
+  it("non-stream: step.responseMessages includes tool message at TurnEnd", async () => {
+    mockGenerate
+      .mockResolvedValueOnce(toolCallsResult)
+      .mockResolvedValueOnce(makeResult({ finishReason: "stop" }));
+
+    const turnEndSteps: GenerateResult[] = [];
+    for await (const y of runAgentLoop("go", { modelId: "claude-haiku-4-5-20251001", parallelToolCalls: true }, { messages: [], tools })) {
+      if (y.event === AgentEventType.TurnEnd) turnEndSteps.push(y.step);
+    }
+    // first turn had tool calls — responseMessages must include the tool message
+    const firstTurn = turnEndSteps[0];
+    expect(firstTurn.responseMessages.some((m) => m.role === "tool")).toBe(true);
+  });
+
+  it("non-stream: does not call executeToolsParallel when no tool calls", async () => {
+    mockGenerate.mockResolvedValueOnce(makeResult({ finishReason: "stop" }));
+
+    for await (const _ of runAgentLoop("go", { modelId: "claude-haiku-4-5-20251001", parallelToolCalls: true }, { messages: [], tools })) {
+      // consume
+    }
+    expect(mockExecuteToolsParallel).not.toHaveBeenCalled();
+  });
+
+  it("stream: emits ToolBatchStart → ToolCallEnd × N → ToolBatchEnd before TurnEnd", async () => {
+    mockStreamGenerate
+      .mockImplementationOnce(async function* () {
+        yield { type: "finish" as const, result: toolCallsResult };
+      })
+      .mockImplementationOnce(defaultStreamGenerate);
+
+    const events: string[] = [];
+    for await (const y of runAgentLoop("go", { modelId: "claude-haiku-4-5-20251001", stream: true, parallelToolCalls: true }, { messages: [], tools })) {
+      events.push(y.event);
+    }
+
+    expect(events).toContain(AgentEventType.ToolBatchStart);
+    expect(events).toContain(AgentEventType.ToolBatchEnd);
+    expect(events.filter((e) => e === AgentEventType.ToolCallEnd)).toHaveLength(2);
+
+    const batchStart = events.indexOf(AgentEventType.ToolBatchStart);
+    const batchEnd   = events.indexOf(AgentEventType.ToolBatchEnd);
+    expect(batchEnd).toBeGreaterThan(batchStart);
   });
 });
 

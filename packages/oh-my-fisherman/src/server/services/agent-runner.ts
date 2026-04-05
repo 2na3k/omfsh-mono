@@ -30,6 +30,8 @@ function serializeEvent(y: LoopYield): SerializedAgentEvent {
     case AgentEventType.ToolCallStart:  return { event: "tool_call.start", toolCallId: y.toolCallId, toolName: y.toolName };
     case AgentEventType.ToolCallDelta:  return { event: "tool_call.delta", toolCallId: y.toolCallId, delta: y.delta };
     case AgentEventType.ToolCallEnd:    return { event: "tool_call.end", toolCallId: y.toolCallId, toolName: y.toolName, input: y.input, output: y.output };
+    case AgentEventType.ToolBatchStart: return { event: "tool_batch.start", toolCallIds: y.toolCallIds };
+    case AgentEventType.ToolBatchEnd:   return { event: "tool_batch.end" };
   }
 }
 

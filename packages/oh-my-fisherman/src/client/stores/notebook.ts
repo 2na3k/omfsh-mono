@@ -10,6 +10,7 @@ interface NotebookState {
   setNotebooks: (notebooks: Notebook[]) => void;
   addNotebook: (notebook: Notebook) => void;
   removeNotebook: (id: string) => void;
+  renameNotebook: (id: string, name: string) => void;
   setActiveNotebook: (id: string | null) => void;
   setSources: (sources: SourceMeta[]) => void;
   addSource: (source: SourceMeta) => void;
@@ -25,6 +26,9 @@ export const useNotebookStore = create<NotebookState>((set) => ({
 
   setNotebooks: (notebooks) => set({ notebooks }),
   addNotebook: (notebook) => set((s) => ({ notebooks: [notebook, ...s.notebooks] })),
+  renameNotebook: (id, name) => set((s) => ({
+    notebooks: s.notebooks.map((n) => n.id === id ? { ...n, name } : n),
+  })),
   removeNotebook: (id) => set((s) => ({
     notebooks: s.notebooks.filter((n) => n.id !== id),
     activeNotebookId: s.activeNotebookId === id ? null : s.activeNotebookId,

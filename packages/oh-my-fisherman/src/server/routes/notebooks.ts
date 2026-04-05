@@ -4,6 +4,7 @@ import {
   listNotebooks,
   getNotebook,
   deleteNotebook,
+  renameNotebook,
   listSources,
   listEntities,
   listRelations,
@@ -42,6 +43,16 @@ app.get("/:id", (c) => {
   if (!notebook) return c.json({ error: "not found" }, 404);
   const sources = listSources(id);
   return c.json({ ...notebook, sources });
+});
+
+// rename notebook
+app.patch("/:id", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json<{ name: string }>();
+  if (!body.name?.trim()) return c.json({ error: "name required" }, 400);
+  const ok = renameNotebook(id, body.name.trim());
+  if (!ok) return c.json({ error: "not found" }, 404);
+  return c.json({ ok: true });
 });
 
 // delete notebook

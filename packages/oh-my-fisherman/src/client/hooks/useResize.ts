@@ -27,7 +27,9 @@ export function usePanelSizes() {
   return {
     leftWidth: sizes.left,
     rightWidth: sizes.right,
-    setLeftWidth: (w: number) => setSizes((s) => ({ ...s, left: w })),
-    setRightWidth: (w: number) => setSizes((s) => ({ ...s, right: w })),
+    setLeftWidth: (updater: number | ((prev: number) => number)) =>
+      setSizes((s) => ({ ...s, left: typeof updater === "function" ? updater(s.left) : updater })),
+    setRightWidth: (updater: number | ((prev: number) => number)) =>
+      setSizes((s) => ({ ...s, right: typeof updater === "function" ? updater(s.right) : updater })),
   };
 }

@@ -101,6 +101,12 @@ export function deleteNotebook(id: string): boolean {
   return result.changes > 0;
 }
 
+export function renameNotebook(id: string, name: string): boolean {
+  const db = getDb();
+  const result = db.run("UPDATE notebooks SET name = ?, updated_at = datetime('now') WHERE id = ?", [name, id]);
+  return result.changes > 0;
+}
+
 export function touchNotebook(id: string) {
   const db = getDb();
   db.run("UPDATE notebooks SET updated_at = datetime('now') WHERE id = ?", [id]);

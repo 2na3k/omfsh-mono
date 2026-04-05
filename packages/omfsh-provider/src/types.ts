@@ -147,6 +147,7 @@ export interface GenerateOptions {
   tools?: ToolMap;
   temperature?: number;
   maxTokens?: number;
+  executeTools?: boolean; // default: true — set false to get raw tool calls without execution
 }
 
 export interface ToolCallRecord {

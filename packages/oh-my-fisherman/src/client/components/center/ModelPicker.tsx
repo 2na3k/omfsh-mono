@@ -16,6 +16,8 @@ export function ModelPicker() {
   const setModelId = useChatStore((s) => s.setModelId);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
   const models: ModelEntry[] = useMemo(
     () => Object.entries(MODELS).map(([id, def]) => ({
       id: id as ModelId,
@@ -72,8 +74,8 @@ export function ModelPicker() {
         <div
           style={{
             position: "absolute",
-            top: "calc(100% + 4px)",
-            right: 0,
+            bottom: "calc(100% + 4px)",
+            left: 0,
             minWidth: 280,
             background: "var(--surface-overlay)",
             border: "1px solid var(--border)",
@@ -85,21 +87,24 @@ export function ModelPicker() {
         >
           {models.map((model, i) => {
             const isActive = model.id === modelId;
+            const isHovered = hoveredId === model.id;
             return (
               <button
                 key={model.id}
-                onClick={() => {
-                  setModelId(model.id);
-                  setOpen(false);
-                }}
-                className="w-full text-left flex items-center justify-between transition-colors"
+                onClick={() => { setModelId(model.id); setOpen(false); }}
+                onMouseEnter={() => setHoveredId(model.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                className="w-full text-left flex items-center justify-between"
                 style={{
                   padding: "8px 14px",
                   borderBottom: i < models.length - 1 ? "1px solid var(--border)" : "none",
-                  background: isActive ? "var(--accent-subtle)" : "transparent",
+                  background: isHovered
+                    ? "rgba(255,255,255,0.06)"
+                    : isActive ? "var(--accent-subtle)" : "transparent",
                   color: isActive ? "var(--accent)" : "var(--text-secondary)",
                   fontSize: "var(--text-xs)",
                   fontFamily: "var(--font-mono)",
+                  transition: "background 0.1s ease",
                 }}
               >
                 <span>{model.id}</span>
