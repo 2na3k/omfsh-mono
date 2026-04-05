@@ -1,7 +1,6 @@
 import { useState, type KeyboardEvent } from "react";
 import { useNotebookStore } from "../../stores/notebook.js";
 import { Text } from "../shared/Text.js";
-import { Kbd } from "../shared/Kbd.js";
 
 export function UrlInput() {
   const [url, setUrl] = useState("");
@@ -38,36 +37,40 @@ export function UrlInput() {
   };
 
   return (
-    <div>
-      <div
-        className="flex items-center"
+    <div
+      className="flex items-center"
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-sm)",
+        background: "var(--surface-raised)",
+      }}
+    >
+      <input
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Paste URL..."
+        disabled={loading}
         style={{
-          border: "1px solid var(--border)",
+          flex: 1,
+          padding: "var(--sp-2) var(--sp-3)",
+          fontSize: "var(--text-xs)",
+          background: "transparent",
+          color: "var(--text)",
+          outline: "none",
+        }}
+      />
+      <button
+        onClick={submit}
+        style={{
+          padding: "var(--sp-2) var(--sp-3)",
+          fontSize: "var(--text-xs)",
+          color: loading ? "var(--accent)" : "var(--text-muted)",
+          fontWeight: 500,
         }}
       >
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="paste url..."
-          disabled={loading}
-          style={{
-            flex: 1,
-            padding: "var(--sp-2) var(--sp-3)",
-            fontSize: "var(--text-xs)",
-            background: "transparent",
-            color: "var(--text)",
-            outline: "none",
-          }}
-        />
-        <div style={{ padding: "0 var(--sp-2)" }}>
-          {loading ? (
-            <Text variant="xs" accent>...</Text>
-          ) : (
-            <Kbd>Enter</Kbd>
-          )}
-        </div>
-      </div>
+        {loading ? "..." : "Add"}
+      </button>
     </div>
   );
 }

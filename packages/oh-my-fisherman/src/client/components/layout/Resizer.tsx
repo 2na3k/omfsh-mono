@@ -36,8 +36,24 @@ export function Resizer({ onResize }: ResizerProps) {
   return (
     <div
       onPointerDown={handlePointerDown}
-      className="flex-none w-[4px] cursor-col-resize hover:bg-[var(--border-active)] transition-none"
-      style={{ background: "var(--border)" }}
-    />
+      style={{
+        flexShrink: 0,
+        width: 1,
+        cursor: "col-resize",
+        background: "var(--border)",
+        position: "relative",
+      }}
+    >
+      {/* invisible wider hit area */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: -3,
+          right: -3,
+        }}
+      />
+    </div>
   );
 }

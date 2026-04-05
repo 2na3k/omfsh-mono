@@ -18,21 +18,24 @@ export function Report() {
       {/* tabs */}
       <div
         className="flex"
-        style={{ borderBottom: "1px solid var(--border)" }}
+        style={{
+          borderBottom: "1px solid var(--border)",
+          background: "var(--surface)",
+        }}
       >
         {(["report", "graph", "entities"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className="flex-1"
+            className="flex-1 transition-colors"
             style={{
               padding: "var(--sp-3) var(--sp-4)",
-              textTransform: "uppercase",
               fontSize: "var(--text-xs)",
-              letterSpacing: "0.1em",
               fontWeight: 500,
-              color: activeTab === tab ? "var(--accent)" : "var(--text-secondary)",
-              borderBottom: activeTab === tab ? "1px solid var(--accent)" : "1px solid transparent",
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: activeTab === tab ? "var(--accent)" : "var(--text-muted)",
+              borderBottom: activeTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
               background: "transparent",
             }}
           >
@@ -42,7 +45,7 @@ export function Report() {
       </div>
 
       {/* content */}
-      <div className="flex-1 overflow-y-auto" style={{ padding: activeTab === "graph" ? 0 : "var(--sp-4)" }}>
+      <div className="flex-1 overflow-y-auto" style={{ padding: activeTab === "graph" ? 0 : "var(--sp-5)" }}>
         {activeTab === "report" && (
           reportMarkdown ? (
             <MarkdownRenderer content={reportMarkdown} />
@@ -51,10 +54,10 @@ export function Report() {
               className="flex flex-col items-center justify-center"
               style={{ paddingTop: "var(--sp-12)", opacity: 0.5 }}
             >
-              <Text variant="sm" muted>no report yet</Text>
-              <div style={{ marginTop: "var(--sp-2)" }}>
+              <Text variant="lg" serif muted style={{ fontStyle: "italic" }}>No report yet</Text>
+              <div style={{ marginTop: "var(--sp-3)" }}>
                 <Text variant="xs" muted>
-                  the agent builds a report as it researches
+                  The agent builds a report as it researches
                 </Text>
               </div>
             </div>
@@ -72,8 +75,8 @@ export function Report() {
           borderTop: "1px solid var(--border)",
         }}
       >
-        <Text variant="xs" muted>entities: {entities.length}</Text>
-        <Text variant="xs" muted>relations: {relations.length}</Text>
+        <Text variant="xs" muted mono>{entities.length} entities</Text>
+        <Text variant="xs" muted mono>{relations.length} relations</Text>
       </div>
     </div>
   );

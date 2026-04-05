@@ -3,8 +3,6 @@ import { useNotebookStore } from "../../stores/notebook.js";
 import { useChatStore } from "../../stores/chat.js";
 import { useGraphStore } from "../../stores/graph.js";
 import { Text } from "../shared/Text.js";
-import { Button } from "../shared/Button.js";
-import { Kbd } from "../shared/Kbd.js";
 import { NotebookList } from "./NotebookList.js";
 import { SourceList } from "./SourceList.js";
 import { SourceUpload } from "./SourceUpload.js";
@@ -90,16 +88,27 @@ export function Sidebar() {
       <div
         className="flex items-center justify-between"
         style={{
-          padding: "var(--sp-4)",
+          padding: "var(--sp-5) var(--sp-4) var(--sp-4)",
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <Text variant="sm" weight="bold" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
-          fisherman
+        <Text variant="lg" serif style={{ fontStyle: "italic", letterSpacing: "-0.01em" }}>
+          Fisherman
         </Text>
-        <Button variant="ghost" size="sm" onClick={() => setCreating(true)}>
-          <Kbd>^N</Kbd>
-        </Button>
+        <button
+          onClick={() => setCreating(true)}
+          className="transition-colors"
+          style={{
+            padding: "2px 10px",
+            fontSize: "var(--text-xs)",
+            color: "var(--text-secondary)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--surface-raised)",
+          }}
+        >
+          + New
+        </button>
       </div>
 
       {/* new notebook input */}
@@ -112,15 +121,16 @@ export function Sidebar() {
               if (e.key === "Enter") createNotebook();
               if (e.key === "Escape") { setCreating(false); setNewName(""); }
             }}
-            placeholder="notebook name..."
+            placeholder="Notebook name..."
             autoFocus
             style={{
               width: "100%",
-              padding: "var(--sp-2)",
+              padding: "var(--sp-2) var(--sp-3)",
               fontSize: "var(--text-sm)",
               background: "var(--surface-raised)",
               color: "var(--text)",
               border: "1px solid var(--border-active)",
+              borderRadius: "var(--radius-sm)",
               outline: "none",
             }}
           />
@@ -130,8 +140,8 @@ export function Sidebar() {
       {/* notebooks section */}
       <div style={{ borderBottom: "1px solid var(--border)" }}>
         <div style={{ padding: "var(--sp-3) var(--sp-4) var(--sp-1)" }}>
-          <Text variant="xs" secondary style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
-            notebooks
+          <Text variant="xs" secondary weight="medium" style={{ letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            Notebooks
           </Text>
         </div>
         <NotebookList />
@@ -140,8 +150,8 @@ export function Sidebar() {
       {/* sources section */}
       <div className="flex-1 overflow-y-auto">
         <div style={{ padding: "var(--sp-3) var(--sp-4) var(--sp-1)" }}>
-          <Text variant="xs" secondary style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
-            sources
+          <Text variant="xs" secondary weight="medium" style={{ letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            Sources
           </Text>
         </div>
         <SourceList />
@@ -160,7 +170,7 @@ export function Sidebar() {
           borderTop: "1px solid var(--border)",
         }}
       >
-        <Text variant="xs" muted>v0.0.1</Text>
+        <Text variant="xs" muted mono>v0.0.1</Text>
       </div>
     </div>
   );

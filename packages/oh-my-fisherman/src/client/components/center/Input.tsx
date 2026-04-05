@@ -28,15 +28,19 @@ export function Input({ onSubmit, disabled = false }: InputProps) {
   return (
     <div
       style={{
-        padding: "var(--sp-4)",
+        padding: "var(--sp-4) var(--sp-5)",
         borderTop: "1px solid var(--border)",
+        background: "var(--surface)",
       }}
     >
       <div
         style={{
           border: `1px solid ${disabled ? "var(--border)" : "var(--border-active)"}`,
-          background: "var(--surface)",
+          borderRadius: "var(--radius-md)",
+          background: "var(--bg)",
           opacity: disabled ? 0.6 : 1,
+          boxShadow: disabled ? "none" : "var(--shadow-sm)",
+          transition: "border-color 0.15s ease, box-shadow 0.15s ease",
         }}
       >
         <textarea
@@ -44,7 +48,7 @@ export function Input({ onSubmit, disabled = false }: InputProps) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={disabled ? "researching..." : "ask something..."}
+          placeholder={disabled ? "Researching..." : "Ask something..."}
           disabled={disabled}
           rows={3}
           className="w-full resize-none"
@@ -54,13 +58,13 @@ export function Input({ onSubmit, disabled = false }: InputProps) {
             color: "var(--text)",
             outline: "none",
             fontSize: "var(--text-sm)",
+            lineHeight: 1.7,
           }}
         />
         <div
           className="flex items-center justify-between"
           style={{
-            padding: "var(--sp-2) var(--sp-4)",
-            borderTop: "1px solid var(--border)",
+            padding: "var(--sp-1) var(--sp-4) var(--sp-2)",
           }}
         >
           <Text variant="xs" muted>

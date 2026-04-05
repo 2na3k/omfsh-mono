@@ -51,35 +51,39 @@ export function ModelPicker() {
       <button
         onClick={() => setOpen(!open)}
         disabled={status === "running"}
-        className="flex items-center gap-1"
+        className="flex items-center gap-1 transition-colors"
         style={{
-          padding: "2px 8px",
-          border: "1px solid var(--border-active)",
+          padding: "3px 10px",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-sm)",
           fontSize: "var(--text-xs)",
+          fontFamily: "var(--font-mono)",
           color: "var(--text-secondary)",
-          background: "transparent",
+          background: "var(--surface-raised)",
           cursor: status === "running" ? "not-allowed" : "pointer",
           opacity: status === "running" ? 0.5 : 1,
         }}
       >
-        <Text variant="xs" secondary>{modelId}</Text>
-        <Text variant="xs" muted>{open ? "▴" : "▾"}</Text>
+        <span>{modelId}</span>
+        <span style={{ color: "var(--text-muted)", marginLeft: 2 }}>{open ? "\u25B4" : "\u25BE"}</span>
       </button>
 
       {open && (
         <div
           style={{
             position: "absolute",
-            top: "100%",
+            top: "calc(100% + 4px)",
             right: 0,
-            marginTop: 4,
             minWidth: 280,
-            background: "var(--surface)",
-            border: "1px solid var(--border-active)",
+            background: "var(--surface-overlay)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-lg)",
             zIndex: 50,
+            overflow: "hidden",
           }}
         >
-          {models.map((model) => {
+          {models.map((model, i) => {
             const isActive = model.id === modelId;
             return (
               <button
@@ -88,19 +92,18 @@ export function ModelPicker() {
                   setModelId(model.id);
                   setOpen(false);
                 }}
-                className="w-full text-left flex items-center justify-between"
+                className="w-full text-left flex items-center justify-between transition-colors"
                 style={{
-                  padding: "6px 12px",
-                  borderBottom: "1px solid var(--border)",
-                  background: isActive ? "var(--surface-raised)" : "transparent",
+                  padding: "8px 14px",
+                  borderBottom: i < models.length - 1 ? "1px solid var(--border)" : "none",
+                  background: isActive ? "var(--accent-subtle)" : "transparent",
                   color: isActive ? "var(--accent)" : "var(--text-secondary)",
                   fontSize: "var(--text-xs)",
+                  fontFamily: "var(--font-mono)",
                 }}
               >
                 <span>{model.id}</span>
-                <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)" }}>
-                  {model.provider}
-                </span>
+                <Text variant="xs" muted>{model.provider}</Text>
               </button>
             );
           })}

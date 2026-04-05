@@ -9,6 +9,8 @@ interface TextProps {
   muted?: boolean;
   secondary?: boolean;
   accent?: boolean;
+  serif?: boolean;
+  mono?: boolean;
   as?: "span" | "p" | "h1" | "h2" | "h3" | "h4" | "label" | "div";
   className?: string;
   style?: CSSProperties;
@@ -37,6 +39,8 @@ export function Text({
   muted = false,
   secondary = false,
   accent = false,
+  serif = false,
+  mono = false,
   as: Tag = "span",
   className = "",
   style,
@@ -50,14 +54,21 @@ export function Text({
         ? "var(--text-secondary)"
         : "var(--text)";
 
+  const fontFamily = serif
+    ? "var(--font-serif)"
+    : mono
+      ? "var(--font-mono)"
+      : undefined;
+
   return (
     <Tag
       className={className}
       style={{
         fontSize: SIZE_MAP[variant],
         fontWeight: WEIGHT_MAP[weight],
+        fontFamily,
         color,
-        lineHeight: 1.6,
+        lineHeight: serif ? 1.3 : 1.6,
         ...style,
       }}
     >

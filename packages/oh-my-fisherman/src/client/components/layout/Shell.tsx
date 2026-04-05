@@ -8,9 +8,9 @@ interface ShellProps {
   right: ReactNode;
 }
 
-const MIN_LEFT = 240;
+const MIN_LEFT = 260;
 const MIN_CENTER = 400;
-const MIN_RIGHT = 280;
+const MIN_RIGHT = 300;
 
 export function Shell({ left, center, right }: ShellProps) {
   const shellRef = useRef<HTMLDivElement>(null);
@@ -23,7 +23,7 @@ export function Shell({ left, center, right }: ShellProps) {
         if (!shell) return prev;
         const total = shell.offsetWidth;
         const next = prev + delta;
-        const maxLeft = total - MIN_CENTER - MIN_RIGHT - 8; // 2 resizers
+        const maxLeft = total - MIN_CENTER - MIN_RIGHT - 2;
         return Math.max(MIN_LEFT, Math.min(next, maxLeft));
       });
     },
@@ -36,9 +36,8 @@ export function Shell({ left, center, right }: ShellProps) {
         const shell = shellRef.current;
         if (!shell) return prev;
         const total = shell.offsetWidth;
-        // delta is inverted for right panel (dragging left = bigger)
         const next = prev - delta;
-        const maxRight = total - MIN_CENTER - leftWidth - 8;
+        const maxRight = total - MIN_CENTER - leftWidth - 2;
         return Math.max(MIN_RIGHT, Math.min(next, maxRight));
       });
     },

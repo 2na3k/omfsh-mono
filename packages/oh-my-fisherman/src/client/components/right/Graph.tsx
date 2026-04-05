@@ -16,12 +16,12 @@ interface GraphLink extends SimulationLinkDatum<GraphNode> {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  person: "#4fc3f7",
-  org: "#81c784",
-  concept: "#ffb74d",
-  event: "#e57373",
-  location: "#ba68c8",
-  work: "#90a4ae",
+  person: "#6a8fa7",
+  org: "#7a9a6e",
+  concept: "#c49b5c",
+  event: "#b86a6a",
+  location: "#8e6aa8",
+  work: "#7a8a8e",
 };
 
 export function Graph() {
@@ -71,8 +71,9 @@ export function Graph() {
       .selectAll("line")
       .data(links)
       .join("line")
-      .attr("stroke", "#2A2A2A")
-      .attr("stroke-width", 1);
+      .attr("stroke", "var(--border-active)")
+      .attr("stroke-width", 1)
+      .attr("stroke-opacity", 0.6);
 
     const linkLabels = linkGroup
       .selectAll("text")
@@ -80,8 +81,8 @@ export function Graph() {
       .join("text")
       .text((d) => d.label)
       .attr("font-size", "9px")
-      .attr("fill", "#555")
-      .attr("font-family", "JetBrains Mono, monospace")
+      .attr("fill", "var(--text-muted)")
+      .attr("font-family", "Inter, sans-serif")
       .attr("text-anchor", "middle");
 
     // nodes
@@ -90,9 +91,10 @@ export function Graph() {
       .selectAll("circle")
       .data(nodes)
       .join("circle")
-      .attr("r", 8)
-      .attr("fill", "var(--bg)")
-      .attr("stroke", (d) => TYPE_COLORS[d.type] ?? "#888")
+      .attr("r", 7)
+      .attr("fill", (d) => TYPE_COLORS[d.type] ?? "var(--border-active)")
+      .attr("fill-opacity", 0.15)
+      .attr("stroke", (d) => TYPE_COLORS[d.type] ?? "var(--border-active)")
       .attr("stroke-width", (d) => d.id === selectedId ? 2.5 : 1.5)
       .attr("cursor", "pointer")
       .on("click", (_event, d) => {
@@ -106,9 +108,9 @@ export function Graph() {
       .text((d) => d.name)
       .attr("font-size", "10px")
       .attr("fill", "var(--text)")
-      .attr("font-family", "JetBrains Mono, monospace")
+      .attr("font-family", "Inter, sans-serif")
       .attr("text-anchor", "middle")
-      .attr("dy", 22);
+      .attr("dy", 20);
 
     simulation.on("tick", () => {
       linkLines
@@ -153,7 +155,9 @@ export function Graph() {
         className="flex items-center justify-center h-full"
         style={{ opacity: 0.5 }}
       >
-        <Text variant="sm" muted>knowledge graph populates during research</Text>
+        <Text variant="sm" muted style={{ fontStyle: "italic" }}>
+          Knowledge graph populates during research
+        </Text>
       </div>
     );
   }

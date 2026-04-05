@@ -14,7 +14,7 @@ export function ToolCall({ message }: ToolCallProps) {
     <div
       style={{
         padding: "var(--sp-2) 0",
-        borderBottom: "1px solid var(--border)",
+        animation: "fadeIn 0.2s ease",
       }}
     >
       <button
@@ -26,21 +26,31 @@ export function ToolCall({ message }: ToolCallProps) {
           {message.toolName ?? "tool"}
         </Badge>
         {message.isStreaming ? (
-          <Text variant="xs" accent>running...</Text>
+          <Text variant="xs" accent style={{ animation: "pulse 1.5s ease infinite" }}>running</Text>
         ) : (
           <Text variant="xs" muted>
-            {expanded ? "[-]" : "[+]"}
+            {expanded ? "collapse" : "expand"}
           </Text>
         )}
       </button>
 
       {expanded && !message.isStreaming && (
-        <div style={{ paddingLeft: "var(--sp-4)", marginTop: "var(--sp-2)" }}>
+        <div
+          style={{
+            marginTop: "var(--sp-2)",
+            marginLeft: "var(--sp-2)",
+            paddingLeft: "var(--sp-3)",
+            borderLeft: "2px solid var(--border)",
+          }}
+        >
           {message.toolInput != null && (
             <div style={{ marginBottom: "var(--sp-2)" }}>
-              <Text variant="xs" secondary style={{ display: "block", marginBottom: 2 }}>input:</Text>
+              <Text variant="xs" secondary weight="medium" style={{ display: "block", marginBottom: 4 }}>
+                Input
+              </Text>
               <pre
                 style={{
+                  fontFamily: "var(--font-mono)",
                   fontSize: "var(--text-xs)",
                   color: "var(--text-secondary)",
                   whiteSpace: "pre-wrap",
@@ -48,7 +58,8 @@ export function ToolCall({ message }: ToolCallProps) {
                   maxHeight: 200,
                   overflow: "auto",
                   background: "var(--surface-raised)",
-                  padding: "var(--sp-2)",
+                  padding: "var(--sp-3)",
+                  borderRadius: "var(--radius-sm)",
                   border: "1px solid var(--border)",
                 }}
               >
@@ -60,9 +71,12 @@ export function ToolCall({ message }: ToolCallProps) {
           )}
           {message.toolOutput != null && (
             <div>
-              <Text variant="xs" secondary style={{ display: "block", marginBottom: 2 }}>output:</Text>
+              <Text variant="xs" secondary weight="medium" style={{ display: "block", marginBottom: 4 }}>
+                Output
+              </Text>
               <pre
                 style={{
+                  fontFamily: "var(--font-mono)",
                   fontSize: "var(--text-xs)",
                   color: "var(--text-secondary)",
                   whiteSpace: "pre-wrap",
@@ -70,7 +84,8 @@ export function ToolCall({ message }: ToolCallProps) {
                   maxHeight: 200,
                   overflow: "auto",
                   background: "var(--surface-raised)",
-                  padding: "var(--sp-2)",
+                  padding: "var(--sp-3)",
+                  borderRadius: "var(--radius-sm)",
                   border: "1px solid var(--border)",
                 }}
               >

@@ -13,15 +13,15 @@ export function StreamingText({ text }: StreamingTextProps) {
       <span
         style={{
           display: "inline-block",
-          width: "8px",
-          height: "15px",
+          width: "2px",
+          height: "14px",
           background: "var(--accent)",
           marginLeft: "2px",
           verticalAlign: "text-bottom",
           animation: "blink 1s step-end infinite",
+          borderRadius: 1,
         }}
       />
-      <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
     </span>
   );
 }

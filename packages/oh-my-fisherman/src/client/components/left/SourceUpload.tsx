@@ -57,17 +57,19 @@ export function SourceUpload() {
         onClick={() => fileInputRef.current?.click()}
         style={{
           padding: "var(--sp-6) var(--sp-4)",
-          border: `1px dashed ${dragging ? "var(--accent)" : "var(--border)"}`,
+          border: `1.5px dashed ${dragging ? "var(--accent)" : "var(--border-active)"}`,
+          borderRadius: "var(--radius-md)",
           textAlign: "center",
           cursor: "pointer",
-          background: dragging ? "rgba(0, 255, 136, 0.05)" : "transparent",
+          background: dragging ? "var(--accent-subtle)" : "transparent",
+          transition: "all 0.15s ease",
         }}
       >
         <Text variant="sm" muted={!dragging} accent={dragging}>
-          {uploading ? "uploading..." : dragging ? "drop here" : "drop files here"}
+          {uploading ? "Uploading..." : dragging ? "Drop here" : "Drop files here"}
         </Text>
         <div style={{ marginTop: "var(--sp-1)" }}>
-          <Text variant="xs" muted>pdf, txt, md</Text>
+          <Text variant="xs" muted>PDF, TXT, MD</Text>
         </div>
       </div>
       <input

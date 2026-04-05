@@ -36,15 +36,27 @@ export function Chat({ onSubmit }: ChatProps) {
       <div
         className="flex items-center justify-between"
         style={{
-          padding: "var(--sp-2) var(--sp-4)",
+          padding: "var(--sp-2) var(--sp-5)",
           borderBottom: "1px solid var(--border)",
           background: "var(--surface)",
         }}
       >
         <div className="flex items-center gap-3">
-          <Text variant="xs" accent={status === "running"} secondary={status !== "running"}>
-            {status === "running" ? "● researching" : "○ idle"}
-          </Text>
+          <div className="flex items-center gap-2">
+            <span
+              style={{
+                display: "inline-block",
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: status === "running" ? "var(--accent)" : "var(--border-active)",
+                animation: status === "running" ? "pulse 1.5s ease infinite" : "none",
+              }}
+            />
+            <Text variant="xs" mono secondary>
+              {status === "running" ? "researching" : "idle"}
+            </Text>
+          </div>
           {errorMessage && (
             <Text variant="xs" style={{ color: "var(--error)" }}>
               {errorMessage}
@@ -52,11 +64,11 @@ export function Chat({ onSubmit }: ChatProps) {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <Text variant="xs" muted>
-            {totalInputTokens + totalOutputTokens > 0
-              ? `${totalInputTokens}↓ ${totalOutputTokens}↑`
-              : ""}
-          </Text>
+          {totalInputTokens + totalOutputTokens > 0 && (
+            <Text variant="xs" muted mono>
+              {totalInputTokens.toLocaleString()}in / {totalOutputTokens.toLocaleString()}out
+            </Text>
+          )}
           <ModelPicker />
         </div>
       </div>
@@ -65,24 +77,32 @@ export function Chat({ onSubmit }: ChatProps) {
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto"
-        style={{ padding: "var(--sp-4) var(--sp-6)" }}
+        style={{ padding: "var(--sp-6) var(--sp-8)" }}
       >
         {messages.length === 0 ? (
           <div
             className="flex flex-col items-center justify-center h-full"
-            style={{ opacity: 0.5 }}
+            style={{ opacity: 0.6 }}
           >
-            <Text variant="lg" weight="medium" accent>
-              $ fisherman
+            <Text variant="2xl" serif style={{ fontStyle: "italic", color: "var(--text)" }}>
+              Fisherman
             </Text>
-            <div style={{ marginTop: "var(--sp-3)" }}>
-              <Text variant="sm" secondary>deep research agent</Text>
+            <div style={{ marginTop: "var(--sp-2)" }}>
+              <Text variant="sm" secondary>Deep research agent</Text>
             </div>
-            <div style={{ marginTop: "var(--sp-6)" }}>
-              <Text variant="xs" muted>
+            <div
+              style={{
+                marginTop: "var(--sp-8)",
+                padding: "var(--sp-4) var(--sp-6)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-md)",
+                background: "var(--surface)",
+              }}
+            >
+              <Text variant="sm" muted>
                 {activeNotebookId
-                  ? "add sources to the left, then ask questions here"
-                  : "create or select a notebook to start"}
+                  ? "Add sources to the left, then ask questions here"
+                  : "Create or select a notebook to start"}
               </Text>
             </div>
           </div>

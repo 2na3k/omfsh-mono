@@ -25,7 +25,7 @@ export function SourceList() {
           <Text variant="sm" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
             {src.title}
           </Text>
-          <Text variant="xs" muted>{src.chunkCount}ch</Text>
+          <Text variant="xs" muted mono>{src.chunkCount} chunks</Text>
         </div>
       ))}
     </div>

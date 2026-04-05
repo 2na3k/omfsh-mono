@@ -1,14 +1,13 @@
 import { useGraphStore } from "../../stores/graph.js";
 import { Text } from "../shared/Text.js";
-import { Badge } from "../shared/Badge.js";
 
 const TYPE_COLORS: Record<string, string> = {
-  person: "#4fc3f7",
-  org: "#81c784",
-  concept: "#ffb74d",
-  event: "#e57373",
-  location: "#ba68c8",
-  work: "#90a4ae",
+  person: "#6a8fa7",
+  org: "#7a9a6e",
+  concept: "#c49b5c",
+  event: "#b86a6a",
+  location: "#8e6aa8",
+  work: "#7a8a8e",
 };
 
 export function EntityList() {
@@ -18,8 +17,8 @@ export function EntityList() {
 
   if (entities.length === 0) {
     return (
-      <div style={{ padding: "var(--sp-4)", textAlign: "center" }}>
-        <Text variant="sm" muted>no entities extracted</Text>
+      <div style={{ padding: "var(--sp-6)", textAlign: "center" }}>
+        <Text variant="sm" muted style={{ fontStyle: "italic" }}>No entities extracted</Text>
       </div>
     );
   }
@@ -30,22 +29,33 @@ export function EntityList() {
         <button
           key={e.id}
           onClick={() => setSelected(selectedId === e.id ? null : e.id)}
-          className="w-full text-left flex items-start gap-2"
+          className="w-full text-left flex items-start gap-3 transition-colors"
           style={{
-            padding: "var(--sp-2) var(--sp-3)",
+            padding: "var(--sp-3) var(--sp-4)",
             borderBottom: "1px solid var(--border)",
-            background: selectedId === e.id ? "var(--surface-raised)" : "transparent",
+            background: selectedId === e.id ? "var(--accent-subtle)" : "transparent",
           }}
         >
-          <Badge>
-            <span style={{ color: TYPE_COLORS[e.type] ?? "var(--text-secondary)" }}>
-              {e.type}
-            </span>
-          </Badge>
+          <span
+            style={{
+              display: "inline-block",
+              fontSize: "var(--text-xs)",
+              padding: "1px 8px",
+              borderRadius: "var(--radius-sm)",
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+              color: TYPE_COLORS[e.type] ?? "var(--text-secondary)",
+              background: "var(--surface-raised)",
+              border: "1px solid var(--border)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {e.type}
+          </span>
           <div className="flex-1 min-w-0">
-            <Text variant="sm">{e.name}</Text>
+            <Text variant="sm" weight="medium">{e.name}</Text>
             {e.description && (
-              <Text variant="xs" muted as="p" style={{ marginTop: 2 }}>
+              <Text variant="xs" muted as="p" style={{ marginTop: 2, lineHeight: 1.5 }}>
                 {e.description}
               </Text>
             )}
