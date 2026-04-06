@@ -32,5 +32,8 @@ ${sourceBlock}
 ## Important
 - Always use entity_extract when you encounter text with notable people, organizations, concepts, or events
 - Structure your report with clear sections using note_write
-- Don't just summarize — analyze and synthesize across sources`;
+- Don't just summarize — analyze and synthesize across sources
+- NEVER repeat the same tool call with the same arguments — if you already searched a query or read a URL, don't do it again
+- Track what you've already searched/read and move on to new queries instead of repeating
+- If a search returns poor results, try a different query rather than retrying the same one`;
 }

@@ -11,7 +11,6 @@ type GroupedItem =
   | { kind: "single"; message: UiMessage }
   | { kind: "toolGroup"; messages: UiMessage[]; id: string };
 
-// Roles that can appear between / around tool calls and should be absorbed into the group
 const TOOL_ADJACENT = new Set<UiMessage["role"]>(["tool", "reasoning", "log"]);
 
 function groupMessages(messages: UiMessage[]): GroupedItem[] {
@@ -21,7 +20,6 @@ function groupMessages(messages: UiMessage[]): GroupedItem[] {
     const msg = messages[i];
 
     if (msg.role === "tool") {
-      // Absorb all consecutive tool / reasoning / log messages into one group
       const group: UiMessage[] = [];
       while (i < messages.length && TOOL_ADJACENT.has(messages[i].role)) {
         if (messages[i].role === "tool") group.push(messages[i]);
@@ -29,12 +27,10 @@ function groupMessages(messages: UiMessage[]): GroupedItem[] {
       }
       result.push({ kind: "toolGroup", messages: group, id: group[0].id });
     } else if (msg.role === "reasoning" || msg.role === "log") {
-      // Peek ahead (skipping only reasoning/log) to see if a tool call follows.
-      // If so, skip this message — it will be absorbed when the tool group starts.
       let j = i + 1;
       while (j < messages.length && (messages[j].role === "reasoning" || messages[j].role === "log")) j++;
       if (j < messages.length && messages[j].role === "tool") {
-        i++; // skip silently
+        i++;
       } else {
         result.push({ kind: "single", message: msg });
         i++;
@@ -47,6 +43,14 @@ function groupMessages(messages: UiMessage[]): GroupedItem[] {
   return result;
 }
 
+function formatMs(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return `${m}m ${rem}s`;
+}
+
 interface ChatProps {
   onSubmit: (prompt: string) => void;
 }
@@ -56,11 +60,11 @@ export function Chat({ onSubmit }: ChatProps) {
   const status = useChatStore((s) => s.status);
   const totalInputTokens = useChatStore((s) => s.totalInputTokens);
   const totalOutputTokens = useChatStore((s) => s.totalOutputTokens);
-  const errorMessage = useChatStore((s) => s.errorMessage);
+  const contextTokens = useChatStore((s) => s.contextTokens);
+  const executionTimeMs = useChatStore((s) => s.executionTimeMs);
   const activeNotebookId = useNotebookStore((s) => s.activeNotebookId);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // auto-scroll on new messages
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -71,9 +75,10 @@ export function Chat({ onSubmit }: ChatProps) {
     onSubmit(text);
   };
 
+  const showStats = status === "idle" && executionTimeMs > 0;
+
   return (
     <div className="flex flex-col h-full">
-      {/* status bar */}
       <div
         className="flex items-center justify-between"
         style={{
@@ -84,34 +89,37 @@ export function Chat({ onSubmit }: ChatProps) {
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span
-              style={{
-                display: "inline-block",
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: status === "running" ? "var(--accent)" : "var(--border-active)",
-                animation: status === "running" ? "pulse 1.5s ease infinite" : "none",
-              }}
-            />
+            {status === "running" && (
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 12,
+                  height: 12,
+                  border: "2px solid var(--accent)",
+                  borderTopColor: "transparent",
+                  borderRadius: "50%",
+                  animation: "spin 0.8s linear infinite",
+                }}
+              />
+            )}
+            {status !== "running" && (
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "var(--border-active)",
+                }}
+              />
+            )}
             <Text variant="xs" mono secondary>
               {status === "running" ? "researching" : "idle"}
             </Text>
           </div>
-          {errorMessage && (
-            <Text variant="xs" style={{ color: "var(--error)" }}>
-              {errorMessage}
-            </Text>
-          )}
         </div>
-        {totalInputTokens + totalOutputTokens > 0 && (
-          <Text variant="xs" muted mono>
-            {totalInputTokens.toLocaleString()}in / {totalOutputTokens.toLocaleString()}out
-          </Text>
-        )}
       </div>
 
-      {/* message area */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto"
@@ -145,17 +153,25 @@ export function Chat({ onSubmit }: ChatProps) {
             </div>
           </div>
         ) : (
-          groupMessages(messages).map((item) =>
-            item.kind === "toolGroup" ? (
-              <ToolCallGroup key={item.id} messages={item.messages} />
-            ) : (
-              <Message key={item.message.id} message={item.message} />
-            )
-          )
+          <>
+            {groupMessages(messages).map((item) =>
+              item.kind === "toolGroup" ? (
+                <ToolCallGroup key={item.id} messages={item.messages} />
+              ) : (
+                <Message key={item.message.id} message={item.message} />
+              )
+            )}
+            {showStats && (
+              <div style={{ marginTop: "var(--sp-3)", opacity: 0.35 }}>
+                <Text variant="xs" mono muted>
+                  {formatMs(executionTimeMs)} · {totalInputTokens.toLocaleString()}in · {totalOutputTokens.toLocaleString()}out · {contextTokens.toLocaleString()} ctx
+                </Text>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* input */}
       <Input
         onSubmit={handleSubmit}
         disabled={status === "running" || !activeNotebookId}

@@ -13,6 +13,7 @@ interface SearchResult {
 
 async function searchTavily(query: string, maxResults: number): Promise<SearchResult[]> {
   const apiKey = process.env.TAVILY_API_KEY;
+  console.log(`[web_search] TAVILY_API_KEY present: ${!!apiKey}, value starts with: ${apiKey ? apiKey.slice(0, 10) + "..." : "MISSING"}`);
   if (!apiKey) throw new Error("TAVILY_API_KEY not set");
 
   const res = await fetch("https://api.tavily.com/search", {
@@ -86,11 +87,17 @@ export const web_search: ToolDef<WebSearchInput, SearchResult[]> = {
   },
   async execute(input: WebSearchInput): Promise<SearchResult[]> {
     const max = input.maxResults ?? 5;
+    console.log(`[web_search] executing query="${input.query}" maxResults=${max}`);
     try {
-      return await searchTavily(input.query, max);
-    } catch {
+      const results = await searchTavily(input.query, max);
+      console.log(`[web_search] tavily returned ${results.length} results`);
+      return results;
+    } catch (err) {
+      console.log(`[web_search] tavily failed: ${err instanceof Error ? err.message : String(err)}, falling back to DDG`);
       // fallback to DuckDuckGo
-      return searchDuckDuckGo(input.query, max);
+      const results = await searchDuckDuckGo(input.query, max);
+      console.log(`[web_search] DDG returned ${results.length} results`);
+      return results;
     }
   },
 };

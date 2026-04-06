@@ -7,6 +7,8 @@ interface NotebookChat {
   messages: UiMessage[];
   totalInputTokens: number;
   totalOutputTokens: number;
+  contextTokens: number;
+  executionTimeMs: number;
 }
 
 interface ChatState {
@@ -18,8 +20,10 @@ interface ChatState {
   streamingReasoningId: string | null;
   totalInputTokens: number;
   totalOutputTokens: number;
+  contextTokens: number;
+  executionTimeMs: number;
+  sessionStartTime: number | null;
   errorMessage: string | null;
-  // per-notebook message cache
   cache: Map<string, NotebookChat>;
 
   submitUserMessage: (text: string) => void;
@@ -41,6 +45,9 @@ export const useChatStore = create<ChatState>((set) => ({
   streamingReasoningId: null,
   totalInputTokens: 0,
   totalOutputTokens: 0,
+  contextTokens: 0,
+  executionTimeMs: 0,
+  sessionStartTime: null,
   errorMessage: null,
   cache: new Map(),
 
@@ -48,16 +55,16 @@ export const useChatStore = create<ChatState>((set) => ({
     set((s) => {
       const cache = new Map(s.cache);
 
-      // save current notebook's messages to cache
       if (s.activeNotebookId) {
         cache.set(s.activeNotebookId, {
           messages: s.messages,
           totalInputTokens: s.totalInputTokens,
           totalOutputTokens: s.totalOutputTokens,
+          contextTokens: s.contextTokens,
+          executionTimeMs: s.executionTimeMs,
         });
       }
 
-      // restore target notebook's messages from cache
       const restored = notebookId ? cache.get(notebookId) : undefined;
 
       return {
@@ -66,8 +73,11 @@ export const useChatStore = create<ChatState>((set) => ({
         messages: restored?.messages ?? [],
         totalInputTokens: restored?.totalInputTokens ?? 0,
         totalOutputTokens: restored?.totalOutputTokens ?? 0,
+        contextTokens: restored?.contextTokens ?? 0,
+        executionTimeMs: restored?.executionTimeMs ?? 0,
         streamingMessageId: null,
         streamingReasoningId: null,
+        sessionStartTime: null,
         errorMessage: null,
       };
     }),
@@ -77,22 +87,21 @@ export const useChatStore = create<ChatState>((set) => ({
       messages: [...s.messages, { id: crypto.randomUUID(), role: "user", text, isStreaming: false }],
       status: "running",
       errorMessage: null,
+      sessionStartTime: Date.now(),
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      contextTokens: 0,
+      executionTimeMs: 0,
     })),
 
   applyAgentEvent: (event) =>
     set((s) => {
       switch (event.event) {
         case "agent.start": {
-          return {
-            ...s,
-            messages: [...s.messages, { id: crypto.randomUUID(), role: "log", text: "research started", isStreaming: false }],
-          };
+          return s;
         }
         case "turn.start": {
-          return {
-            ...s,
-            messages: [...s.messages, { id: crypto.randomUUID(), role: "log", text: "thinking...", isStreaming: false }],
-          };
+          return s;
         }
         case "message.start": {
           const id = crypto.randomUUID();
@@ -181,10 +190,13 @@ export const useChatStore = create<ChatState>((set) => ({
           };
         }
         case "agent.end": {
+          const elapsed = s.sessionStartTime ? Date.now() - s.sessionStartTime : 0;
           return {
             ...s,
             status: "idle",
-            messages: [...s.messages, { id: crypto.randomUUID(), role: "log" as const, text: "research complete", isStreaming: false }],
+            sessionStartTime: null,
+            executionTimeMs: elapsed,
+            contextTokens: s.totalInputTokens + s.totalOutputTokens,
           };
         }
         default:
@@ -194,7 +206,14 @@ export const useChatStore = create<ChatState>((set) => ({
 
   setStatus: (status) => set({ status }),
   setModelId: (modelId) => set({ modelId }),
-  setError: (message) => set({ errorMessage: message, status: message ? "error" : "idle" }),
+  setError: (message) =>
+    set((s) => ({
+      errorMessage: message,
+      status: message ? "error" : "idle",
+      messages: message
+        ? [...s.messages, { id: crypto.randomUUID(), role: "error" as const, text: message, isStreaming: false }]
+        : s.messages,
+    })),
   setMessages: (messages) => set({ messages }),
   clearMessages: () => set({ messages: [], totalInputTokens: 0, totalOutputTokens: 0 }),
 }));

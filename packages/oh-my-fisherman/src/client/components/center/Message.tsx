@@ -13,6 +13,28 @@ export function Message({ message }: MessageProps) {
     return <ToolCall message={message} />;
   }
 
+  if (message.role === "error") {
+    return (
+      <div
+        style={{
+          padding: "var(--sp-3) var(--sp-4)",
+          margin: "var(--sp-2) 0",
+          borderRadius: "var(--radius-sm)",
+          border: "1px solid var(--error, #c0392b)",
+          background: "color-mix(in srgb, var(--error, #c0392b) 8%, transparent)",
+          animation: "fadeIn 0.2s ease",
+        }}
+      >
+        <Text variant="xs" style={{ color: "var(--error, #c0392b)", display: "block", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>
+          Error
+        </Text>
+        <Text variant="sm" style={{ color: "var(--error, #c0392b)", opacity: 0.85 }}>
+          {message.text}
+        </Text>
+      </div>
+    );
+  }
+
   // log messages — subtle, editorial divider style
   if (message.role === "log") {
     return (

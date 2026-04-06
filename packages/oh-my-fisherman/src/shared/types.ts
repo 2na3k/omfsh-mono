@@ -3,7 +3,7 @@
 // UI message shape (mirrors omfsh-code pattern)
 export interface UiMessage {
   id: string;
-  role: "user" | "assistant" | "reasoning" | "tool" | "log";
+  role: "user" | "assistant" | "reasoning" | "tool" | "log" | "error";
   text?: string;
   toolName?: string;
   toolInput?: unknown;

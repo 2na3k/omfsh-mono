@@ -1,7 +1,7 @@
 import { runAgentLoop } from "@2na3k/omfsh-darwin";
 import { AgentEventType } from "@2na3k/omfsh-darwin";
 import type { LoopYield, AgentContext } from "@2na3k/omfsh-darwin";
-import type { ModelId } from "@2na3k/omfsh-provider";
+import type { ModelId, ToolMap, ToolDef, Message } from "@2na3k/omfsh-provider";
 import { buildToolMap } from "../tools/index.js";
 import { buildResearchPrompt } from "../prompts/research-system.js";
 import { getSourceSummaries } from "./source-ingest.js";
@@ -9,11 +9,60 @@ import { getMessages, saveMessage, touchNotebook, reportPath } from "../db.js";
 import { readFileSync, existsSync } from "fs";
 import type { ServerMessage, SerializedAgentEvent, Entity, Relation } from "../../shared/types.js";
 
-const MAX_STEPS = 15;
+const MAX_STEPS = 5;
 const DEFAULT_MODEL: ModelId = "claude-sonnet-4-6";
 
 // active research sessions, keyed by notebookId
 const activeSessions = new Map<string, AbortController>();
+
+function deduplicateTools(tools: ToolMap): ToolMap {
+  const seen = new Set<string>();
+  return Object.fromEntries(
+    Object.entries(tools).map(([name, def]: [string, ToolDef]) => {
+      const original = def;
+      const wrapped: ToolDef = {
+        ...original,
+        execute: (input: unknown) => {
+          const key = `${name}:${JSON.stringify(input)}`;
+          if (seen.has(key)) {
+            console.log(`[dedup] blocking duplicate ${name} with input: ${JSON.stringify(input).slice(0, 120)}`);
+            return `You already called ${name} with these exact arguments. Do NOT repeat this call. Move on to a different query or tool.`;
+          }
+          seen.add(key);
+          return original.execute(input);
+        },
+      };
+      return [name, wrapped];
+    }),
+  );
+}
+
+// Remove trailing messages that would cause AI_MissingToolResultsError.
+// This repairs history corrupted by a previous bug where tool error outputs were dropped.
+function sanitizeHistory(messages: Message[]): Message[] {
+  const pending = new Set<string>();
+  let lastValidIdx = -1;
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    if (msg.role === "user" || msg.role === "system") {
+      if (pending.size === 0) lastValidIdx = i;
+    } else if (msg.role === "assistant") {
+      const toolCalls = msg.content.filter((p) => p.type === "tool-call");
+      toolCalls.forEach((tc) => pending.add((tc as { toolCallId: string }).toolCallId));
+      if (toolCalls.length === 0) lastValidIdx = i;
+    } else if (msg.role === "tool") {
+      msg.content.forEach((p) => pending.delete((p as { toolCallId: string }).toolCallId));
+      if (pending.size === 0) lastValidIdx = i;
+    }
+  }
+
+  if (pending.size > 0) {
+    console.warn(`[sanitize] trimming ${messages.length - lastValidIdx - 1} messages with unresolved tool calls`);
+    return messages.slice(0, lastValidIdx + 1);
+  }
+  return messages;
+}
 
 function serializeEvent(y: LoopYield): SerializedAgentEvent {
   switch (y.event) {
@@ -51,15 +100,15 @@ export async function runResearch(
 
   const sourceSummaries = getSourceSummaries(notebookId);
   const systemPrompt = buildResearchPrompt(sourceSummaries);
-  const history = getMessages(notebookId);
+  const history = sanitizeHistory(getMessages(notebookId));
 
-  const tools = buildToolMap({
+  const tools = deduplicateTools(buildToolMap({
     notebookId,
     modelId: resolvedModel,
     onEntityExtracted: (entities: Entity[], relations: Relation[]) => {
       send({ type: "entity.extracted", notebookId, entities, relations });
     },
-  });
+  }));
 
   const context: AgentContext = {
     systemPrompt,
