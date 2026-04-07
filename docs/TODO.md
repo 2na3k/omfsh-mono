@@ -8,6 +8,10 @@
 - [ ] Centralized config for `omfsh-code`
   - `~/.darwin` for the global config folder
   - Class `Config` to try the load config(s) in `omfsh-code`
-- [ ] Tool run in parallel, and can be config through `NUMBER_PARALLEL_TOOL_RUN=<number>`
+- [idk but maybe done] Tool run in parallel, and can be config through `NUMBER_PARALLEL_TOOL_RUN=<number>`
 - [ ] Terminal: Diff, Edit diff and diff render on darwin-code
 - [ ] Github pipeline to push to npm
+- [ ] Fisherman:
+  - [ ] Organize the write report tool: should aggregate the case of write + gen charts
+  - [ ] The write tool is append only to the report file
+  - [ ] Context management for the tool
