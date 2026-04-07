@@ -117,9 +117,16 @@ function fromResponseMessages(msgs: ResponseMessage[]): Message[] {
     if (msg.role === "tool") {
       const parts: ToolMessage["content"] = (msg.content as Array<{ type: string; [key: string]: unknown }>).flatMap((part) => {
         if (part.type !== "tool-result") return [];
-        const raw = part.output as { type: string; value?: unknown };
-        const output = raw.type === "text" || raw.type === "json" ? raw.value : null;
-        if (output === null) return [];
+        // The SDK stores output as either { type, value } (when we built the message)
+        // or as the raw tool return value (string/object) when the SDK executed the tool.
+        const raw = part.output;
+        let output: unknown;
+        if (raw && typeof raw === "object" && "type" in raw && "value" in raw) {
+          const typed = raw as { type: string; value?: unknown };
+          output = (typed.type === "text" || typed.type === "json") ? typed.value : raw;
+        } else {
+          output = raw;
+        }
         return [{
           type: "tool-result" as const,
           toolCallId: part.toolCallId as string,
@@ -127,6 +134,7 @@ function fromResponseMessages(msgs: ResponseMessage[]): Message[] {
           output,
         }];
       });
+      if (parts.length === 0) return [];
       return [{ role: "tool", content: parts }];
     }
 
@@ -200,6 +208,10 @@ export async function* streamGenerate(
         break;
       case "tool-result": {
         const output = (part as { output: unknown }).output;
+        console.log(`[provider] tool-result: ${part.toolName} (${part.toolCallId}) output type=${typeof output}, isArray=${Array.isArray(output)}, length=${Array.isArray(output) ? output.length : 'N/A'}`);
+        if (Array.isArray(output) && output.length === 0) {
+          console.log(`[provider] WARNING: tool ${part.toolName} returned empty array`);
+        }
         toolResults.push({ toolCallId: part.toolCallId, toolName: part.toolName, output });
         yield { type: "tool-call-end", toolCallId: part.toolCallId, toolName: part.toolName, input: part.input, output };
         break;

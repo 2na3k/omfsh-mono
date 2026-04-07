@@ -125,7 +125,7 @@ describe("generate", () => {
     }]);
   });
 
-  it("converts tool response messages", async () => {
+  it("converts tool response messages — { type, value } SDK format", async () => {
     mockGenerateText.mockResolvedValueOnce({
       ...baseMockResult(),
       response: {
@@ -147,6 +147,71 @@ describe("generate", () => {
       role: "tool",
       content: [{ type: "tool-result", toolCallId: "tc1", toolName: "echo", output: { result: 42 } }],
     }]);
+  });
+
+  it("converts tool response messages — raw string output (SDK inline execution)", async () => {
+    mockGenerateText.mockResolvedValueOnce({
+      ...baseMockResult(),
+      response: {
+        id: "r", modelId: "m", timestamp: new Date(0),
+        messages: [{
+          role: "tool",
+          content: [{
+            type: "tool-result",
+            toolCallId: "tc2",
+            toolName: "web_search",
+            output: "some raw search result",
+          }],
+        }],
+      },
+    } as ReturnType<typeof baseMockResult>);
+
+    const result = await generate("claude-haiku-4-5-20251001", [{ role: "user", content: "go" }]);
+    expect(result.responseMessages).toEqual([{
+      role: "tool",
+      content: [{ type: "tool-result", toolCallId: "tc2", toolName: "web_search", output: "some raw search result" }],
+    }]);
+  });
+
+  it("converts tool response messages — raw object output (SDK inline execution)", async () => {
+    mockGenerateText.mockResolvedValueOnce({
+      ...baseMockResult(),
+      response: {
+        id: "r", modelId: "m", timestamp: new Date(0),
+        messages: [{
+          role: "tool",
+          content: [{
+            type: "tool-result",
+            toolCallId: "tc3",
+            toolName: "fetch",
+            output: { url: "https://example.com", content: "hello" },
+          }],
+        }],
+      },
+    } as ReturnType<typeof baseMockResult>);
+
+    const result = await generate("claude-haiku-4-5-20251001", [{ role: "user", content: "go" }]);
+    expect(result.responseMessages).toEqual([{
+      role: "tool",
+      content: [{ type: "tool-result", toolCallId: "tc3", toolName: "fetch", output: { url: "https://example.com", content: "hello" } }],
+    }]);
+  });
+
+  it("drops tool message entirely when content is empty after filtering", async () => {
+    mockGenerateText.mockResolvedValueOnce({
+      ...baseMockResult(),
+      response: {
+        id: "r", modelId: "m", timestamp: new Date(0),
+        messages: [{
+          role: "tool",
+          content: [{ type: "other-type", toolCallId: "tc4", toolName: "x", output: null }],
+        }],
+      },
+    } as ReturnType<typeof baseMockResult>);
+
+    const result = await generate("claude-haiku-4-5-20251001", [{ role: "user", content: "go" }]);
+    // non tool-result parts are filtered → message is dropped entirely
+    expect(result.responseMessages).toEqual([]);
   });
 
   it("builds tool set when tools are passed", async () => {

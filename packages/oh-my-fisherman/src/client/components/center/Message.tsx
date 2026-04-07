@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { UiMessage } from "../../../shared/types.js";
 import { Text } from "../shared/Text.js";
 import { ToolCall } from "./ToolCall.js";
@@ -57,13 +58,71 @@ export function Message({ message }: MessageProps) {
 
   const isUser = message.role === "user";
   const isReasoning = message.role === "reasoning";
+  // auto-open while streaming, collapsed once done
+  const [open, setOpen] = useState(false);
+
+  if (isReasoning) {
+    return (
+      <div style={{ padding: "var(--sp-2) 0", borderBottom: "1px solid var(--border)", animation: "fadeIn 0.2s ease" }}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--sp-2)",
+          }}
+        >
+          <Text
+            variant="xs"
+            weight="medium"
+            style={{
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            {message.isStreaming ? "Thinking…" : "Thinking"}
+          </Text>
+          <span style={{
+            fontSize: 9,
+            color: "var(--text-muted)",
+            transform: open ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 0.15s ease",
+            display: "inline-block",
+          }}>
+            ▶
+          </span>
+        </button>
+        {(open || message.isStreaming) && (
+          <div style={{
+            marginTop: "var(--sp-2)",
+            paddingLeft: "var(--sp-3)",
+            borderLeft: "2px solid var(--border)",
+            fontSize: "var(--text-xs)",
+            lineHeight: 1.7,
+            color: "var(--text-secondary)",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            maxHeight: 320,
+            overflowY: "auto",
+          }}>
+            {message.isStreaming
+              ? <StreamingText text={message.text ?? ""} />
+              : <span>{message.text}</span>
+            }
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
       style={{
         padding: "var(--sp-4) 0",
         borderBottom: "1px solid var(--border)",
-        opacity: isReasoning ? 0.55 : 1,
         animation: "fadeIn 0.2s ease",
       }}
     >
@@ -78,7 +137,7 @@ export function Message({ message }: MessageProps) {
           letterSpacing: "0.06em",
         }}
       >
-        {isUser ? "You" : isReasoning ? "Thinking" : "Research"}
+        {isUser ? "You" : "Research"}
       </Text>
       <div style={{ paddingLeft: isUser ? 0 : "var(--sp-1)", fontSize: "var(--text-sm)", lineHeight: 1.75 }}>
         {message.isStreaming ? (

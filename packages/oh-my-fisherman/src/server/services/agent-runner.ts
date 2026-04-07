@@ -9,8 +9,8 @@ import { getMessages, saveMessage, touchNotebook, reportPath } from "../db.js";
 import { readFileSync, existsSync } from "fs";
 import type { ServerMessage, SerializedAgentEvent, Entity, Relation } from "../../shared/types.js";
 
-const MAX_STEPS = 5;
-const DEFAULT_MODEL: ModelId = "claude-sonnet-4-6";
+const MAX_STEPS = 15;
+const DEFAULT_MODEL: ModelId = "llamacpp";
 
 // active research sessions, keyed by notebookId
 const activeSessions = new Map<string, AbortController>();
@@ -139,7 +139,7 @@ export async function runResearch(
       }
 
       // when note_write runs, push report update
-      if (y.event === AgentEventType.ToolCallEnd && y.toolName === "note_write") {
+      if (y.event === AgentEventType.ToolCallEnd && (y.toolName === "note_write" || y.toolName === "chart_write")) {
         const rPath = reportPath(notebookId);
         if (existsSync(rPath)) {
           const markdown = readFileSync(rPath, "utf-8");

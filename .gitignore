@@ -13,3 +13,4 @@ build/
 # local scope
 /plans
 /.claude
+*/data
