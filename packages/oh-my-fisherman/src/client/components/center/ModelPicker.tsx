@@ -75,7 +75,7 @@ export function ModelPicker() {
           style={{
             position: "absolute",
             bottom: "calc(100% + 4px)",
-            left: 0,
+            right: 0,
             minWidth: 280,
             background: "var(--surface-overlay)",
             border: "1px solid var(--border)",

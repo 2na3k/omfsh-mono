@@ -19,7 +19,10 @@ function groupMessages(messages: UiMessage[]): GroupedItem[] {
   while (i < messages.length) {
     const msg = messages[i];
 
-    if (msg.role === "tool") {
+    if (msg.role === "tool" && msg.toolName === "research_plan") {
+      result.push({ kind: "single", message: msg });
+      i++;
+    } else if (msg.role === "tool") {
       const group: UiMessage[] = [];
       while (i < messages.length && TOOL_ADJACENT.has(messages[i].role)) {
         if (messages[i].role === "tool") group.push(messages[i]);

@@ -18,6 +18,8 @@ interface ChatState {
   activeNotebookId: string | null;
   streamingMessageId: string | null;
   streamingReasoningId: string | null;
+  checklistMessageId: string | null;
+  pendingChecklistCallId: string | null;
   totalInputTokens: number;
   totalOutputTokens: number;
   contextTokens: number;
@@ -39,10 +41,12 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
   status: "idle",
-  modelId: "claude-sonnet-4-6",
+  modelId: "llamacpp",
   activeNotebookId: null,
   streamingMessageId: null,
   streamingReasoningId: null,
+  checklistMessageId: null,
+  pendingChecklistCallId: null,
   totalInputTokens: 0,
   totalOutputTokens: 0,
   contextTokens: 0,
@@ -77,6 +81,8 @@ export const useChatStore = create<ChatState>((set) => ({
         executionTimeMs: restored?.executionTimeMs ?? 0,
         streamingMessageId: null,
         streamingReasoningId: null,
+        checklistMessageId: null,
+        pendingChecklistCallId: null,
         sessionStartTime: null,
         errorMessage: null,
       };
@@ -98,7 +104,7 @@ export const useChatStore = create<ChatState>((set) => ({
     set((s) => {
       switch (event.event) {
         case "agent.start": {
-          return s;
+          return { ...s, checklistMessageId: null, pendingChecklistCallId: null };
         }
         case "turn.start": {
           return s;
@@ -162,17 +168,45 @@ export const useChatStore = create<ChatState>((set) => ({
           };
         }
         case "tool_call.start": {
+          if (event.toolName === "research_plan") {
+            if (!s.checklistMessageId) {
+              // First call — create the checklist message
+              return {
+                ...s,
+                checklistMessageId: event.toolCallId,
+                messages: [...s.messages, {
+                  id: event.toolCallId,
+                  role: "tool" as const,
+                  toolName: event.toolName,
+                  isStreaming: true,
+                }],
+              };
+            }
+            // Subsequent call — track id but don't append a new message
+            return { ...s, pendingChecklistCallId: event.toolCallId };
+          }
           return {
             ...s,
             messages: [...s.messages, {
               id: event.toolCallId,
-              role: "tool",
+              role: "tool" as const,
               toolName: event.toolName,
               isStreaming: true,
             }],
           };
         }
         case "tool_call.end": {
+          if (event.toolName === "research_plan" && s.checklistMessageId) {
+            return {
+              ...s,
+              pendingChecklistCallId: null,
+              messages: s.messages.map((m) =>
+                m.id === s.checklistMessageId
+                  ? { ...m, toolInput: event.input, toolOutput: event.output, isStreaming: false }
+                  : m,
+              ),
+            };
+          }
           return {
             ...s,
             messages: s.messages.map((m) =>

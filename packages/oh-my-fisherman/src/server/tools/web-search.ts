@@ -1,4 +1,5 @@
 import type { ToolDef } from "@2na3k/omfsh-provider";
+import { scrapeGoogle } from "./google-search.js";
 
 interface WebSearchInput {
   query: string;
@@ -88,16 +89,28 @@ export const web_search: ToolDef<WebSearchInput, SearchResult[]> = {
   async execute(input: WebSearchInput): Promise<SearchResult[]> {
     const max = input.maxResults ?? 5;
     console.log(`[web_search] executing query="${input.query}" maxResults=${max}`);
+
+    // 1. Tavily (best quality, requires API key)
     try {
       const results = await searchTavily(input.query, max);
       console.log(`[web_search] tavily returned ${results.length} results`);
       return results;
     } catch (err) {
-      console.log(`[web_search] tavily failed: ${err instanceof Error ? err.message : String(err)}, falling back to DDG`);
-      // fallback to DuckDuckGo
-      const results = await searchDuckDuckGo(input.query, max);
-      console.log(`[web_search] DDG returned ${results.length} results`);
-      return results;
+      console.log(`[web_search] tavily failed: ${err instanceof Error ? err.message : String(err)}`);
     }
+
+    // 2. Headless Google scrape
+    try {
+      const results = await scrapeGoogle(input.query, max);
+      console.log(`[web_search] google scrape returned ${results.length} results`);
+      return results;
+    } catch (err) {
+      console.log(`[web_search] google scrape failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // 3. DuckDuckGo instant answers (last resort)
+    const results = await searchDuckDuckGo(input.query, max);
+    console.log(`[web_search] DDG returned ${results.length} results`);
+    return results;
   },
 };

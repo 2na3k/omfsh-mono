@@ -1,5 +1,16 @@
 // ---- Shared types between client and server ----
 
+export interface ResearchPlanTask {
+  task: string;
+  status: "pending" | "done";
+}
+
+export interface NoteWriteSource {
+  url: string;
+  title: string;
+}
+
+
 // UI message shape (mirrors omfsh-code pattern)
 export interface UiMessage {
   id: string;

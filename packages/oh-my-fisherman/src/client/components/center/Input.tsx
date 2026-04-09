@@ -49,6 +49,8 @@ export function Input({ onSubmit, disabled = false }: InputProps) {
         background: "var(--bg)",
         transition: "border-color 0.15s ease",
         opacity: disabled ? 0.5 : 1,
+        position: "relative",
+        zIndex: 10,
       }}
     >
       <div className="flex items-end gap-2">

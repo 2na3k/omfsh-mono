@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { UiMessage } from "../../../shared/types.js";
 import { Text } from "../shared/Text.js";
 import { ToolCall } from "./ToolCall.js";
+import { ChecklistCard } from "./ChecklistCard.js";
 import { StreamingText } from "./StreamingText.js";
 import { MarkdownRenderer } from "../shared/MarkdownRenderer.js";
 
@@ -10,6 +11,10 @@ interface MessageProps {
 }
 
 export function Message({ message }: MessageProps) {
+  if (message.role === "tool" && message.toolName === "research_plan") {
+    return <ChecklistCard message={message} />;
+  }
+
   if (message.role === "tool") {
     return <ToolCall message={message} />;
   }
