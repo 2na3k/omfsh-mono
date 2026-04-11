@@ -5,7 +5,7 @@ import type { ModelId, ToolMap, ToolDef, Message } from "@2na3k/omfsh-provider";
 import { buildToolMap } from "../tools/index.js";
 import { buildResearchPrompt } from "../prompts/research-system.js";
 import { getSourceSummaries } from "./source-ingest.js";
-import { getMessages, saveMessage, touchNotebook, reportPath } from "../db.js";
+import { getMessages, saveMessage, clearMessages, touchNotebook, reportPath } from "../db.js";
 import { readFileSync, existsSync } from "fs";
 import type { ServerMessage, SerializedAgentEvent, Entity, Relation } from "../../shared/types.js";
 
@@ -37,31 +37,33 @@ function deduplicateTools(tools: ToolMap): ToolMap {
   );
 }
 
-// Remove trailing messages that would cause AI_MissingToolResultsError.
-// This repairs history corrupted by a previous bug where tool error outputs were dropped.
+// Collect ALL resolved tool call IDs from the entire history first,
+// then walk forward and cut at the first assistant message whose tool calls
+// aren't all in that resolved set.
 function sanitizeHistory(messages: Message[]): Message[] {
-  const pending = new Set<string>();
-  let lastValidIdx = -1;
-
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    if (msg.role === "user" || msg.role === "system") {
-      if (pending.size === 0) lastValidIdx = i;
-    } else if (msg.role === "assistant") {
-      const toolCalls = msg.content.filter((p) => p.type === "tool-call");
-      toolCalls.forEach((tc) => pending.add((tc as { toolCallId: string }).toolCallId));
-      if (toolCalls.length === 0) lastValidIdx = i;
-    } else if (msg.role === "tool") {
-      msg.content.forEach((p) => pending.delete((p as { toolCallId: string }).toolCallId));
-      if (pending.size === 0) lastValidIdx = i;
+  const resolved = new Set<string>();
+  for (const msg of messages) {
+    if (msg.role === "tool") {
+      for (const p of msg.content) {
+        resolved.add((p as { toolCallId: string }).toolCallId);
+      }
     }
   }
 
-  if (pending.size > 0) {
-    console.warn(`[sanitize] trimming ${messages.length - lastValidIdx - 1} messages with unresolved tool calls`);
-    return messages.slice(0, lastValidIdx + 1);
+  let cutAt = messages.length; // default: keep all
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    if (msg.role !== "assistant") continue;
+    const calls = msg.content.filter((p) => p.type === "tool-call") as Array<{ toolCallId: string }>;
+    const unresolved = calls.filter((c) => !resolved.has(c.toolCallId));
+    if (unresolved.length > 0) {
+      cutAt = i;
+      console.warn(`[sanitize] cutting history at idx ${i} — unresolved tool calls: ${unresolved.map((c) => c.toolCallId).join(", ")}`);
+      break;
+    }
   }
-  return messages;
+
+  return messages.slice(0, cutAt);
 }
 
 function serializeEvent(y: LoopYield): SerializedAgentEvent {
@@ -100,7 +102,19 @@ export async function runResearch(
 
   const sourceSummaries = getSourceSummaries(notebookId);
   const systemPrompt = buildResearchPrompt(sourceSummaries);
-  const history = sanitizeHistory(getMessages(notebookId));
+  const rawHistory = getMessages(notebookId);
+  const history = sanitizeHistory(rawHistory);
+  // If we had to trim, clear the DB messages and re-save the clean history
+  // so future sessions don't hit the same broken state.
+  if (history.length < rawHistory.length) {
+    console.warn(`[sanitize] rewriting DB history: ${rawHistory.length} → ${history.length} messages`);
+    clearMessages(notebookId);
+    for (const msg of history) {
+      if (msg.role === "user") saveMessage(notebookId, "user", msg.content);
+      else if (msg.role === "assistant") saveMessage(notebookId, "assistant", JSON.stringify(msg.content));
+      else if (msg.role === "tool") saveMessage(notebookId, "tool", JSON.stringify(msg.content));
+    }
+  }
 
   const tools = deduplicateTools(buildToolMap({
     notebookId,
@@ -147,10 +161,10 @@ export async function runResearch(
         }
       }
 
-      // persist context on turn end
+      // persist context on turn end — run the same repair as agent-loop so DB is always valid
       if (y.event === AgentEventType.TurnEnd) {
-        // save assistant messages from this turn
-        for (const msg of y.step.responseMessages) {
+        const repairedMsgs = sanitizeHistory(y.step.responseMessages);
+        for (const msg of repairedMsgs) {
           if (msg.role === "assistant") {
             saveMessage(notebookId, "assistant", JSON.stringify(msg.content));
           } else if (msg.role === "tool") {
@@ -160,7 +174,9 @@ export async function runResearch(
       }
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    // Extract just the first line — SDK errors include huge stack traces
+    const raw = err instanceof Error ? err.message : String(err);
+    const message = raw.split("\n")[0].trim();
     console.error(`[agent] error:`, err);
     send({ type: "error", message });
   } finally {

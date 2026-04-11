@@ -192,6 +192,33 @@ a:hover {
   color: var(--accent);
 }
 
+/* Inline citation superscripts — [n](#ref-n) upgraded by MarkdownRenderer */
+.markdown-body sup .cite-ref,
+.markdown-body .cite-ref {
+  font-size: 0.72em;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 0 1px;
+  border-radius: 2px;
+  vertical-align: super;
+  line-height: 1;
+  transition: background 0.1s ease;
+}
+
+.markdown-body sup .cite-ref:hover,
+.markdown-body .cite-ref:hover {
+  background: var(--accent-subtle, color-mix(in srgb, var(--accent) 12%, transparent));
+  text-decoration: none;
+}
+
+/* References section anchor targets — subtle highlight on scroll-into-view */
+.markdown-body a[id^="ref-"] {
+  display: block;
+  scroll-margin-top: 12px;
+}
+
 .markdown-body hr {
   border: none;
   border-top: 1px solid var(--border);

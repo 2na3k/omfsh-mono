@@ -4,22 +4,27 @@ import { Text } from "../shared/Text.js";
 
 interface ToolCallGroupProps {
   messages: UiMessage[];
+  stepLabel?: string;
 }
 
 const TOOL_ICONS: Record<string, string> = {
-  web_search:     "⌕",
-  web_read:       "↗",
-  source_search:  "◈",
-  note_write:     "✎",
-  entity_extract: "◎",
+  web_search:      "⌕",
+  google_search:   "⌕",
+  web_read:        "↗",
+  source_search:   "◈",
+  note_write:      "✎",
+  chart_write:     "▤",
+  entity_extract:  "◎",
 };
 
 const TOOL_LABELS: Record<string, string> = {
-  web_search:     "Search the web",
-  web_read:       "Read webpage",
-  source_search:  "Search sources",
-  note_write:     "Write report section",
-  entity_extract: "Extract entities",
+  web_search:      "Search the web",
+  google_search:   "Search Google",
+  web_read:        "Read webpage",
+  source_search:   "Search sources",
+  note_write:      "Write report section",
+  chart_write:     "Insert chart",
+  entity_extract:  "Extract entities",
 };
 
 function getKeyArg(msg: UiMessage): string | null {
@@ -56,7 +61,7 @@ function downloadFile(filename: string, content: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ToolCallGroup({ messages }: ToolCallGroupProps) {
+export function ToolCallGroup({ messages, stepLabel }: ToolCallGroupProps) {
   const [open, setOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -64,9 +69,9 @@ export function ToolCallGroup({ messages }: ToolCallGroupProps) {
   const totalCount = messages.length;
   const isAnyRunning = messages.some((m) => m.isStreaming);
 
-  const label = isAnyRunning
-    ? `${doneCount} / ${totalCount} steps`
-    : `${totalCount} step${totalCount !== 1 ? "s" : ""}`;
+  const countLabel = isAnyRunning
+    ? `${doneCount} / ${totalCount}`
+    : `${totalCount}`;
 
   return (
     <div
@@ -93,9 +98,11 @@ export function ToolCallGroup({ messages }: ToolCallGroupProps) {
         <span style={{ fontSize: 10, color: "var(--text-muted)", lineHeight: 1 }}>
           {open ? "▾" : "▸"}
         </span>
-        <Text variant="xs" mono muted>
-          {open ? "Less steps" : "More steps"}
-        </Text>
+        {stepLabel && (
+          <Text variant="xs" secondary style={{ fontWeight: 500 }}>
+            {stepLabel}
+          </Text>
+        )}
         <span
           style={{
             marginLeft: "auto",
@@ -105,7 +112,7 @@ export function ToolCallGroup({ messages }: ToolCallGroupProps) {
             animation: isAnyRunning ? "pulse 1.5s ease infinite" : "none",
           }}
         >
-          {label}
+          {countLabel} step{totalCount !== 1 ? "s" : ""}
         </span>
       </button>
 

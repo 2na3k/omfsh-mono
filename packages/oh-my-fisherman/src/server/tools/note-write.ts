@@ -15,11 +15,11 @@ export function buildNoteWriteTool(notebookId: string): ToolDef<NoteWriteInput, 
     parameters: {
       type: "object",
       properties: {
-        section: { type: "string", description: "Section heading (e.g. 'Background', 'Key Findings', 'Analysis')" },
-        content: { type: "string", description: "Markdown content for this section" },
+        section: { type: "string", description: "Section heading (e.g. 'Background', 'Key Findings', 'Analysis'). Use 'References' for the final references section." },
+        content: { type: "string", description: "Markdown content for this section. Use [n](#ref-n) inline citation links (e.g. [1](#ref-1)) after claims. For the 'References' section pass an empty string — the sources array generates the anchor list." },
         sources: {
           type: "array",
-          description: "Sources used in this section — will appear as a footnote in the report",
+          description: "Sources used in this section. For 'References' section: pass ALL sources fetched during the session — the tool auto-generates the numbered anchor list.",
           items: {
             type: "object",
             properties: {
@@ -37,10 +37,18 @@ export function buildNoteWriteTool(notebookId: string): ToolDef<NoteWriteInput, 
       const existing = existsSync(path) ? readFileSync(path, "utf-8") : "";
 
       let body = input.content;
-      if (input.sources && input.sources.length > 0) {
-        const links = input.sources.map((s) => `[${s.title}](${s.url})`).join(" · ");
-        body = `${body}\n\n> **Sources:** ${links}`;
+
+      // For the References section, auto-generate a numbered anchor list from sources.
+      // This lets inline [[n]](#ref-n) citations link directly to the reference entries.
+      const isReferences = /^references$/i.test(input.section.trim());
+      if (isReferences && input.sources && input.sources.length > 0) {
+        const list = input.sources
+          .map((s, i) => `<a id="ref-${i + 1}"></a>${i + 1}. [${s.title}](${s.url})`)
+          .join("\n");
+        body = list;
       }
+      // For all other sections: write content as-is — inline [[n]](#ref-n) citations
+      // embedded in the text by the model serve as the citation mechanism.
 
       const newSection = `\n## ${input.section}\n\n${body}\n`;
       // Replace existing section if present, otherwise append

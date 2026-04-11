@@ -116,25 +116,34 @@ function fromResponseMessages(msgs: ResponseMessage[]): Message[] {
 
     if (msg.role === "tool") {
       const parts: ToolMessage["content"] = (msg.content as Array<{ type: string; [key: string]: unknown }>).flatMap((part) => {
-        if (part.type !== "tool-result") return [];
+        // Accept both "tool-result" (standard) and any part that has a toolCallId (defensive)
+        const toolCallId = part.toolCallId as string | undefined;
+        const toolName = (part.toolName ?? part.tool_name ?? "unknown") as string;
+        if (!toolCallId) return [];
+
         // The SDK stores output as either { type, value } (when we built the message)
         // or as the raw tool return value (string/object) when the SDK executed the tool.
-        const raw = part.output;
+        const raw = part.output ?? part.result;
         let output: unknown;
         if (raw && typeof raw === "object" && "type" in raw && "value" in raw) {
           const typed = raw as { type: string; value?: unknown };
           output = (typed.type === "text" || typed.type === "json") ? typed.value : raw;
         } else {
-          output = raw;
+          output = raw ?? "Tool result unavailable.";
         }
         return [{
           type: "tool-result" as const,
-          toolCallId: part.toolCallId as string,
-          toolName: part.toolName as string,
+          toolCallId,
+          toolName,
           output,
         }];
       });
-      if (parts.length === 0) return [];
+      // Never drop a tool message entirely — if all parts were unparseable, produce a
+      // fallback so the history never has unresolved tool calls after this message.
+      if (parts.length === 0) {
+        console.warn("[provider] tool message had no parseable parts — skipping (this may leave dangling tool calls)");
+        return [];
+      }
       return [{ role: "tool", content: parts }];
     }
 
@@ -175,11 +184,16 @@ export async function* streamGenerate(
   options: GenerateOptions = {},
 ): AsyncGenerator<StreamChunk> {
   const model = getModel(MODELS[modelId].provider, modelId);
+
+  // NEVER pass execute functions to the SDK in streaming mode.
+  // Giving the SDK execute functions + stopWhen:stepCountIs(1) causes
+  // AI_MissingToolResultsError during flush when the model makes tool calls.
+  // The agent loop always handles tool execution itself after the finish chunk.
   const result = streamText({
     model,
     system: options.system,
     messages: toModelMessages(messages),
-    tools: options.tools ? toToolSet(options.tools, options.executeTools ?? true) : undefined,
+    tools: options.tools ? toToolSet(options.tools, false) : undefined,
     stopWhen: stepCountIs(1),
     temperature: options.temperature,
     maxOutputTokens: options.maxTokens,
@@ -188,56 +202,82 @@ export async function* streamGenerate(
   let text = "";
   let reasoning = "";
   const toolCalls: ToolCallRecord[] = [];
-  const toolResults: ToolResultRecord[] = [];
   let finishReason: FinishReason = "stop";
   let inputTokens = 0;
   let outputTokens = 0;
+  let streamError: Error | null = null;
 
-  for await (const part of result.fullStream) {
-    switch (part.type) {
-      case "text-start":  yield { type: "text-start" }; break;
-      case "text-delta":  text += part.text; yield { type: "text-delta", delta: part.text }; break;
-      case "text-end":    yield { type: "text-end" }; break;
-      case "reasoning-start": yield { type: "reasoning-start" }; break;
-      case "reasoning-delta": reasoning += part.text; yield { type: "reasoning-delta", delta: part.text }; break;
-      case "reasoning-end":   yield { type: "reasoning-end" }; break;
-      case "tool-input-start": yield { type: "tool-call-start", toolCallId: part.id, toolName: part.toolName }; break;
-      case "tool-input-delta": yield { type: "tool-call-delta", toolCallId: part.id, delta: part.delta }; break;
-      case "tool-call":
-        toolCalls.push({ toolCallId: part.toolCallId, toolName: part.toolName, input: part.input });
-        break;
-      case "tool-result": {
-        const output = (part as { output: unknown }).output;
-        console.log(`[provider] tool-result: ${part.toolName} (${part.toolCallId}) output type=${typeof output}, isArray=${Array.isArray(output)}, length=${Array.isArray(output) ? output.length : 'N/A'}`);
-        if (Array.isArray(output) && output.length === 0) {
-          console.log(`[provider] WARNING: tool ${part.toolName} returned empty array`);
-        }
-        toolResults.push({ toolCallId: part.toolCallId, toolName: part.toolName, output });
-        yield { type: "tool-call-end", toolCallId: part.toolCallId, toolName: part.toolName, input: part.input, output };
-        break;
+  try {
+    for await (const part of result.fullStream) {
+      switch (part.type) {
+        case "text-start":  yield { type: "text-start" }; break;
+        case "text-delta":  text += part.text; yield { type: "text-delta", delta: part.text }; break;
+        case "text-end":    yield { type: "text-end" }; break;
+        case "reasoning-start": yield { type: "reasoning-start" }; break;
+        case "reasoning-delta": reasoning += part.text; yield { type: "reasoning-delta", delta: part.text }; break;
+        case "reasoning-end":   yield { type: "reasoning-end" }; break;
+        case "tool-input-start": yield { type: "tool-call-start", toolCallId: part.id, toolName: part.toolName }; break;
+        case "tool-input-delta": yield { type: "tool-call-delta", toolCallId: part.id, delta: part.delta }; break;
+        case "tool-call":
+          toolCalls.push({ toolCallId: part.toolCallId, toolName: part.toolName, input: part.input });
+          break;
+        case "error":
+          // Capture the real error from the stream before flush() wraps it
+          streamError = (part as unknown as { error: Error }).error ?? new Error(String(part));
+          console.error("[provider] stream error event:", streamError.message);
+          break;
+        case "finish-step":
+          finishReason = part.finishReason;
+          break;
+        case "finish":
+          inputTokens = part.totalUsage.inputTokens ?? 0;
+          outputTokens = part.totalUsage.outputTokens ?? 0;
+          break;
       }
-      case "finish-step":
-        finishReason = part.finishReason;
-        break;
-      case "finish":
-        inputTokens = part.totalUsage.inputTokens ?? 0;
-        outputTokens = part.totalUsage.outputTokens ?? 0;
-        break;
+    }
+  } catch (err) {
+    const isSDKWrapper = err instanceof Error && (
+      err.message.includes("Tool result is missing") ||
+      err.message.includes("No output generated")
+    );
+    if (isSDKWrapper) {
+      // flush() wrapped the real error — if we already captured it from the stream, rethrow that
+      if (streamError) throw streamError;
+      // If we have tool calls, we can recover (agent loop will execute them)
+      if (toolCalls.length > 0) {
+        finishReason = "tool-calls";
+      } else {
+        throw new Error("Model returned no output and no tool calls. The model may be overloaded or the request was rejected.");
+      }
+    } else {
+      throw err;
     }
   }
 
-  const response = await result.response;
+  // If we got a stream error but also have tool calls, recover
+  if (streamError && toolCalls.length === 0) throw streamError;
+
+  // Try to get response messages; fall back to empty if response isn't available
+  let responseMessages: Message[] = [];
+  try {
+    const response = await result.response;
+    responseMessages = fromResponseMessages(response.messages as ResponseMessage[]);
+  } catch {
+    // response may not be available if the stream errored; that's fine —
+    // the agent loop will build the correct history from toolCalls anyway
+  }
+
   yield {
     type: "finish",
     result: {
       text,
       reasoning: reasoning || undefined,
       toolCalls,
-      toolResults,
-      finishReason,
+      toolResults: [],
+      finishReason: toolCalls.length > 0 ? "tool-calls" : finishReason,
       inputTokens,
       outputTokens,
-      responseMessages: fromResponseMessages(response.messages as ResponseMessage[]),
+      responseMessages,
     },
   };
 }

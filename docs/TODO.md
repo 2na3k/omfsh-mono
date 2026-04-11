@@ -12,6 +12,9 @@
 - [ ] Terminal: Diff, Edit diff and diff render on darwin-code
 - [ ] Github pipeline to push to npm
 - [ ] Fisherman:
-  - [ ] Organize the write report tool: should aggregate the case of write + gen charts
-  - [ ] The write tool is append only to the report file
+  - [x] Organize the write report tool: should aggregate the case of write + gen charts
+  - [x] The write tool is append only to the report file
   - [ ] Context management for the tool
+  - [ ] Turn that into a kind of cli app (like `code .`)
+  - [ ] Todo enhancement
+  - [ ] Adding skills supprt

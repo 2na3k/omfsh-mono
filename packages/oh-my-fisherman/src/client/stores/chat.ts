@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { UiMessage, SerializedAgentEvent } from "../../shared/types.js";
+import type { UiMessage, SerializedAgentEvent, ResearchPlanTask } from "../../shared/types.js";
 
 type AgentStatus = "idle" | "running" | "error";
 
@@ -168,6 +168,10 @@ export const useChatStore = create<ChatState>((set) => ({
           };
         }
         case "tool_call.start": {
+          // note_write is hidden from chat — the research plan checklist shows
+          // section-writing progress instead of individual tool cards.
+          if (event.toolName === "note_write") return s;
+
           if (event.toolName === "research_plan") {
             if (!s.checklistMessageId) {
               // First call — create the checklist message
@@ -207,6 +211,30 @@ export const useChatStore = create<ChatState>((set) => ({
               ),
             };
           }
+
+          // When a report section is written, auto-check the matching plan task
+          // so the checklist stays in sync without waiting for the agent to call
+          // research_plan again.
+          if (event.toolName === "note_write" && s.checklistMessageId) {
+            const sectionName = (event.input as Record<string, unknown>)?.section as string | undefined;
+            if (sectionName) {
+              const normalized = sectionName.toLowerCase();
+              const messages = s.messages.map((m) => {
+                if (m.id !== s.checklistMessageId) return m;
+                const inp = m.toolInput as { tasks?: ResearchPlanTask[] } | undefined;
+                if (!inp?.tasks) return m;
+                const tasks = inp.tasks.map((t) =>
+                  t.status === "pending" && t.task.toLowerCase().includes(normalized)
+                    ? { ...t, status: "done" as const }
+                    : t,
+                );
+                return { ...m, toolInput: { ...inp, tasks } };
+              });
+              return { ...s, messages };
+            }
+            return s;
+          }
+
           return {
             ...s,
             messages: s.messages.map((m) =>

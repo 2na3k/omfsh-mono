@@ -5,30 +5,47 @@ import { Text } from "../shared/Text.js";
 import { Message } from "./Message.js";
 import { ToolCallGroup } from "./ToolCallGroup.js";
 import { Input } from "./Input.js";
-import type { UiMessage } from "../../../shared/types.js";
+import type { UiMessage, ResearchPlanTask } from "../../../shared/types.js";
 
 type GroupedItem =
   | { kind: "single"; message: UiMessage }
-  | { kind: "toolGroup"; messages: UiMessage[]; id: string };
+  | { kind: "toolGroup"; messages: UiMessage[]; id: string; stepLabel: string };
 
 const TOOL_ADJACENT = new Set<UiMessage["role"]>(["tool", "reasoning", "log"]);
 
 function groupMessages(messages: UiMessage[]): GroupedItem[] {
   const result: GroupedItem[] = [];
   let i = 0;
+  // Track the current step label based on the research plan state.
+  // Before any plan: "Researching". After plan: first pending task name.
+  let currentStep = "Researching";
+
   while (i < messages.length) {
     const msg = messages[i];
 
     if (msg.role === "tool" && msg.toolName === "research_plan") {
+      // Update currentStep from the plan's tasks — find the first pending task.
+      const inp = msg.toolInput as { tasks?: ResearchPlanTask[] } | undefined;
+      if (inp?.tasks) {
+        const nextPending = inp.tasks.find((t) => t.status === "pending");
+        if (nextPending) {
+          currentStep = nextPending.task;
+        } else {
+          currentStep = "Finalizing";
+        }
+      }
       result.push({ kind: "single", message: msg });
       i++;
     } else if (msg.role === "tool") {
       const group: UiMessage[] = [];
+      const stepLabel = currentStep;
       while (i < messages.length && TOOL_ADJACENT.has(messages[i].role)) {
         if (messages[i].role === "tool") group.push(messages[i]);
         i++;
       }
-      result.push({ kind: "toolGroup", messages: group, id: group[0].id });
+      if (group.length > 0) {
+        result.push({ kind: "toolGroup", messages: group, id: group[0].id, stepLabel });
+      }
     } else if (msg.role === "reasoning" || msg.role === "log") {
       let j = i + 1;
       while (j < messages.length && (messages[j].role === "reasoning" || messages[j].role === "log")) j++;
@@ -159,7 +176,7 @@ export function Chat({ onSubmit }: ChatProps) {
           <>
             {groupMessages(messages).map((item) =>
               item.kind === "toolGroup" ? (
-                <ToolCallGroup key={item.id} messages={item.messages} />
+                <ToolCallGroup key={item.id} messages={item.messages} stepLabel={item.stepLabel} />
               ) : (
                 <Message key={item.message.id} message={item.message} />
               )
